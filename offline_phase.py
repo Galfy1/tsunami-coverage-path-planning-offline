@@ -68,7 +68,8 @@ for i, y in enumerate(y_coords):
         if polygon.contains(point) and not no_fly_zone_polygon.contains(point):
             grid[i, j] = 1
 
-print("Grid shape:", grid.shape)
+#print(grid)
+#print("Grid shape:", grid.shape)
 
 
 

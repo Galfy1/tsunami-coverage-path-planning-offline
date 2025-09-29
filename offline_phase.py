@@ -3,6 +3,7 @@
 
 import numpy as np
 from shapely.geometry import Point, Polygon
+from breadth_first_traversal import breadth_first_traversal
 
 
 import csv
@@ -69,10 +70,18 @@ for i, y in enumerate(y_coords):
             grid[i, j] = 1
 
 #print(grid)
+traversal_order = breadth_first_traversal(grid, 12, 12) # start somewhere in the middle TODO: make sure start point is valid (inside polygon and not in no-fly zone)
+print(traversal_order)
+
+#print(grid)
 #print("Grid shape:", grid.shape)
 
 
 
+# TODO, VI SKAL LIGE VÆLGE OM ORIGIN I VOReS GRID I OPPE I VENSTRE HJØRNE ELLER NEDRE VENSTRE HJØRNE
+# NÅR VI PRINTER GRID, SER DEN UD PÅ EN MÅDE (forket i forhold til missionplanner)
+# NÅR VI PRITNER GRID MED origin="lower" SER DEN UD PÅ EN ANDEN MÅDE (rigtig i forhold til missionplanner)
+# DET SKAL VI LIGE FINDE UD AF HVAD DER SKER DER
 
 
 

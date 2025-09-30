@@ -4,6 +4,7 @@
 import numpy as np
 from shapely.geometry import Point, Polygon
 from breadth_first_traversal import breadth_first_traversal
+import matplotlib.pyplot as plt
 
 
 import csv
@@ -76,20 +77,31 @@ print(traversal_order)
 #print(grid)
 #print("Grid shape:", grid.shape)
 
+# heatmap plot
+heatmap = np.zeros((len(y_coords), len(x_coords)), dtype=int)
+for idx, (i, j) in enumerate(traversal_order):
+    heatmap[i, j] = idx + 1  # Start from 1 for better visibility
 
+plt.imshow(heatmap, origin="lower", cmap="hot", interpolation='nearest')
+plt.show()
 
 # TODO, VI SKAL LIGE VÆLGE OM ORIGIN I VOReS GRID I OPPE I VENSTRE HJØRNE ELLER NEDRE VENSTRE HJØRNE
 # NÅR VI PRINTER GRID, SER DEN UD PÅ EN MÅDE (forket i forhold til missionplanner)
 # NÅR VI PRITNER GRID MED origin="lower" SER DEN UD PÅ EN ANDEN MÅDE (rigtig i forhold til missionplanner)
 # DET SKAL VI LIGE FINDE UD AF HVAD DER SKER DER
+# MEN DET GØR MÅSKE IKKE NOGET AT ARRAYED ER FLIPPED NÅR VI PLOTTER DET (det er bare sådan python plotter numpy array tænker jeg)
 
 
 
-import matplotlib.pyplot as plt
 
-plt.imshow(grid, origin="lower", cmap="Greens")
-plt.title("Polygon Rasterized to Grid")
-plt.show()
+
+
+
+
+
+# plt.imshow(grid, origin="lower", cmap="Greens")
+# plt.title("Polygon Rasterized to Grid")
+# plt.show()
 
 
 #Link til wavefront "breath first traversal (BFS)":

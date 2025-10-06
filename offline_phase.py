@@ -163,12 +163,13 @@ def main(args=None) -> None:
 
 
 
-
-
-
-    # # Save traversal order to a file using pickle
-    # with open('traversal_order_gps.pkl', 'wb') as fp:
-    #     pickle.dump(traversal_order_gps, fp)
+    data_to_save = {
+        'home_pos_gps': DRONE_START,
+        'traversal_order_gps': traversal_order_gps
+    }
+    # Save traversal order to a file using pickle
+    with open('traversal_order_gps.pkl', 'wb') as fp:
+        pickle.dump(data_to_save, fp)
 
 
 

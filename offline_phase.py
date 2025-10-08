@@ -1,6 +1,7 @@
 
 
 
+import os
 import numpy as np
 from shapely.geometry import Point, Polygon
 from breadth_first_traversal import breadth_first_traversal
@@ -171,8 +172,42 @@ def main(args=None) -> None:
     with open('traversal_order_gps.pkl', 'wb') as fp:
         pickle.dump(data_to_save, fp)
 
+    # FOR DEBUGGING -
+    # Save first 1000 traversal order in csv format (can be plottet here: https://maps.co/gis/)
+    # with open('traversal_order_gps.csv', 'w', newline='') as csvfile:
+    #     csvwriter = csv.writer(csvfile)
+    #     csvwriter.writerow(['latitude', 'longitude'])  # Write header
+    #     for lat, lon in traversal_order_gps[:1000]:
+    #         csvwriter.writerow([lat, lon])
 
 
+    import folium
+    import matplotlib.cm as cm
+    import matplotlib.colors as colors
+    from matplotlib import colormaps
+    # List of coordinates (using a shortened sample for demonstration; will replace with full list)
+
+    # Center the map around the average of coordinates
+    avg_lat = sum(lat for lat, lon in traversal_order_gps) / len(traversal_order_gps)
+    avg_lon = sum(lon for lat, lon in traversal_order_gps) / len(traversal_order_gps)
+
+    # Create the map
+    m = folium.Map(location=[avg_lat, avg_lon], zoom_start=18)
+
+    # Set up a colormap
+    #amount_of_colored_points = len(traversal_order_gps)  # You can change this to a lower number if you want to "zoom in" on the colormap
+    amount_of_colored_points = 30
+    cmap = cm.get_cmap('inferno', amount_of_colored_points)  # You can change colormap to what you want
+
+    # Add points to the map with colors based on their order
+    for i, (lat, lon) in enumerate(traversal_order_gps):
+        # Convert RGBA to hex
+        color = colors.rgb2hex(cmap(i)[:3])
+        folium.CircleMarker(location=[lat, lon], radius=5, color=color, fill=True, fill_opacity=0.7).add_to(m)
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))  # Get script directory
+    map_path = os.path.join(script_dir, "map.html")          # Set filename
+    m.save(map_path)
 
 
     # plt.imshow(grid, origin="lower", cmap="Greens")

@@ -4,6 +4,7 @@
 import os
 import numpy as np
 from shapely.geometry import Point, Polygon
+from sympy import Add
 from breadth_first_traversal import breadth_first_traversal
 import matplotlib.pyplot as plt
 import pickle
@@ -172,13 +173,13 @@ def main(args=None) -> None:
     with open('traversal_order_gps.pkl', 'wb') as fp:
         pickle.dump(data_to_save, fp)
 
-    # FOR DEBUGGING -
-    # Save first 1000 traversal order in csv format (can be plottet here: https://maps.co/gis/)
-    # with open('traversal_order_gps.csv', 'w', newline='') as csvfile:
-    #     csvwriter = csv.writer(csvfile)
-    #     csvwriter.writerow(['latitude', 'longitude'])  # Write header
-    #     for lat, lon in traversal_order_gps[:1000]:
-    #         csvwriter.writerow([lat, lon])
+
+
+
+
+
+
+
 
 
     import folium
@@ -196,18 +197,36 @@ def main(args=None) -> None:
 
     # Set up a colormap
     #amount_of_colored_points = len(traversal_order_gps)  # You can change this to a lower number if you want to "zoom in" on the colormap
-    amount_of_colored_points = 30
+    amount_of_colored_points = 60
     cmap = cm.get_cmap('inferno', amount_of_colored_points)  # You can change colormap to what you want
 
-    # Add points to the map with colors based on their order
-    for i, (lat, lon) in enumerate(traversal_order_gps):
-        # Convert RGBA to hex
-        color = colors.rgb2hex(cmap(i)[:3])
-        folium.CircleMarker(location=[lat, lon], radius=5, color=color, fill=True, fill_opacity=0.7).add_to(m)
+    PLOT_TYPE = 'line' # 'points' or 'line'
+
+    if(PLOT_TYPE == 'points'):
+        #Add points to the map with colors based on their order
+        for i, (lat, lon) in enumerate(traversal_order_gps):
+            # Convert RGBA to hex
+            color = colors.rgb2hex(cmap(i)[:3])
+            folium.CircleMarker(location=[lat, lon], radius=5, color=color, fill=True, fill_opacity=0.7).add_to(m)
+    if (PLOT_TYPE == 'line'):
+        # Add a line connecting the points
+        folium.PolyLine(locations=traversal_order_gps, color="blue", weight=2.5, opacity=1, ).add_to(m)
 
     script_dir = os.path.dirname(os.path.abspath(__file__))  # Get script directory
     map_path = os.path.join(script_dir, "map.html")          # Set filename
     m.save(map_path)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
     # plt.imshow(grid, origin="lower", cmap="Greens")

@@ -75,7 +75,8 @@ def main(args=None) -> None:
 
 
     # Define grid resolution (degrees)
-    grid_res = 0.00005  # TODO NOT TRUE: I CHANGE IT - ~11 meters // https://lucidar.me/en/online-unit-converter-length-to-angle/convert-degrees-to-meters/ (earth radius = 6373000 m) 
+    #grid_res = 0.00005  # TODO NOT TRUE: I CHANGE IT - ~11 meters // https://lucidar.me/en/online-unit-converter-length-to-angle/convert-degrees-to-meters/ (earth radius = 6373000 m) 
+    grid_res = 0.0001
 
     # Compute bounding box of polygon
     minx, miny, maxx, maxy = polygon.bounds
@@ -188,6 +189,8 @@ def main(args=None) -> None:
     from matplotlib import colormaps
     # List of coordinates (using a shortened sample for demonstration; will replace with full list)
 
+    PLOT_TYPE = 'points' # 'points' or 'line'
+
     # Center the map around the average of coordinates
     avg_lat = sum(lat for lat, lon in traversal_order_gps) / len(traversal_order_gps)
     avg_lon = sum(lon for lat, lon in traversal_order_gps) / len(traversal_order_gps)
@@ -196,11 +199,9 @@ def main(args=None) -> None:
     m = folium.Map(location=[avg_lat, avg_lon], zoom_start=18)
 
     # Set up a colormap
-    #amount_of_colored_points = len(traversal_order_gps)  # You can change this to a lower number if you want to "zoom in" on the colormap
-    amount_of_colored_points = 60
+    amount_of_colored_points = len(traversal_order_gps)  # You can change this to a lower number if you want to "zoom in" on the colormap
+    #amount_of_colored_points = 60
     cmap = cm.get_cmap('inferno', amount_of_colored_points)  # You can change colormap to what you want
-
-    PLOT_TYPE = 'line' # 'points' or 'line'
 
     if(PLOT_TYPE == 'points'):
         #Add points to the map with colors based on their order

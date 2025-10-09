@@ -33,8 +33,9 @@ def convert_cells_to_gps(traversal_order_cells, x_coords, y_coords):
 def main(args=None) -> None:
 
 
+    # Note: polygons can for example for created in Mission Planner and exported as .poly files
     polygon_coords = []
-    with open('baylands_polygon_v3.poly','r') as f:
+    with open('baylands_polygon_v3.poly','r') as f: 
         reader = csv.reader(f,delimiter=' ')
         for row in reader:
             if(row[0] == '#saved'): continue # skip header
@@ -189,7 +190,7 @@ def main(args=None) -> None:
     from matplotlib import colormaps
     # List of coordinates (using a shortened sample for demonstration; will replace with full list)
 
-    PLOT_TYPE = 'points' # 'points' or 'line'
+    PLOT_TYPE = 'both' # 'points' or 'line' or 'both'
 
     # Center the map around the average of coordinates
     avg_lat = sum(lat for lat, lon in traversal_order_gps) / len(traversal_order_gps)
@@ -203,13 +204,13 @@ def main(args=None) -> None:
     #amount_of_colored_points = 60
     cmap = cm.get_cmap('inferno', amount_of_colored_points)  # You can change colormap to what you want
 
-    if(PLOT_TYPE == 'points'):
+    if (PLOT_TYPE == 'points' or PLOT_TYPE == 'both'):
         #Add points to the map with colors based on their order
         for i, (lat, lon) in enumerate(traversal_order_gps):
             # Convert RGBA to hex
             color = colors.rgb2hex(cmap(i)[:3])
             folium.CircleMarker(location=[lat, lon], radius=5, color=color, fill=True, fill_opacity=0.7).add_to(m)
-    if (PLOT_TYPE == 'line'):
+    if (PLOT_TYPE == 'line' or PLOT_TYPE == 'both'):
         # Add a line connecting the points
         folium.PolyLine(locations=traversal_order_gps, color="blue", weight=2.5, opacity=1, ).add_to(m)
 

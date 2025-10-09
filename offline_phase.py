@@ -121,7 +121,7 @@ def main(args=None) -> None:
 
 
     #print(grid)
-    traversal_order_cells = traversal_order(grid, home_cell[0], home_cell[1]) # start somewhere in the middle TODO: make sure start point is valid (inside polygon and not in no-fly zone)
+    traversal_order_cells = traversal_order(grid, home_cell[0], home_cell[1], allow_diagonal=True) # start somewhere in the middle TODO: make sure start point is valid (inside polygon and not in no-fly zone)
     #print(traversal_order_cells)
     traversal_order_gps = convert_cells_to_gps(traversal_order_cells, x_coords, y_coords)
     print("TRAVERSAL ORDER GPS COORDS:", traversal_order_gps)

@@ -4,8 +4,8 @@
 import os
 import numpy as np
 from shapely.geometry import Point, Polygon
-from sympy import Add
-from breadth_first_traversal import breadth_first_traversal
+#from sympy import Add
+from breadth_first_traversal import breadth_first_traversal, traversal_order
 import matplotlib.pyplot as plt
 import pickle
 
@@ -121,7 +121,7 @@ def main(args=None) -> None:
 
 
     #print(grid)
-    traversal_order_cells = breadth_first_traversal(grid, home_cell[0], home_cell[1]) # start somewhere in the middle TODO: make sure start point is valid (inside polygon and not in no-fly zone)
+    traversal_order_cells = traversal_order(grid, home_cell[0], home_cell[1]) # start somewhere in the middle TODO: make sure start point is valid (inside polygon and not in no-fly zone)
     #print(traversal_order_cells)
     traversal_order_gps = convert_cells_to_gps(traversal_order_cells, x_coords, y_coords)
     print("TRAVERSAL ORDER GPS COORDS:", traversal_order_gps)
@@ -212,7 +212,7 @@ def main(args=None) -> None:
             folium.CircleMarker(location=[lat, lon], radius=5, color=color, fill=True, fill_opacity=0.7).add_to(m)
     if (PLOT_TYPE == 'line' or PLOT_TYPE == 'both'):
         # Add a line connecting the points
-        folium.PolyLine(locations=traversal_order_gps, color="blue", weight=2.5, opacity=1, ).add_to(m)
+        folium.PolyLine(locations=traversal_order_gps, color="blue", weight=2.0, opacity=1, ).add_to(m)
 
     script_dir = os.path.dirname(os.path.abspath(__file__))  # Get script directory
     map_path = os.path.join(script_dir, "map.html")          # Set filename

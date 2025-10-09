@@ -1,27 +1,31 @@
 from collections import deque as queue
 import numpy as np
-
+import math
 
 # BASED ON https://www.geeksforgeeks.org/dsa/breadth-first-traversal-bfs-on-a-2d-array/
+
+# TODO DER ER ET FUNDEMENTALT ISSUE HER... BFS ER POITNSE IKKE NØDVENDLIGVIS VED SIDEN AF HINANDEN
+    # I DERES PAPER: er hver point ved siden af hidnanden fordi dronen vælger de points der er tættest på
 
 # Direction vectors
 dRow = [ -1, 0, 1, 0]
 dCol = [ 0, 1, 0, -1]
 
+
 # Function to check if a cell
 # is be visited or not
-def is_valid(grid, vis, row, col):
+def is_valid(grid, vis, x, y):
   
     # If cell lies out of bounds
-    if (row < 0 or col < 0 or row >= grid.shape[0] or col >= grid.shape[1]):
+    if (x < 0 or y < 0 or x >= grid.shape[0] or y >= grid.shape[1]):
         return False
 
     # If cell is already visited
-    if (vis[row][col]):
+    if (vis[x][y]):
         return False
     
     # If cell is not traversable (i.e. "no fly zone")
-    if (grid[row][col] == 0): 
+    if (grid[x][y] == 0):
         return False
 
     # Otherwise
@@ -71,36 +75,137 @@ def breadth_first_traversal(grid, start_row, start_col):
 
     return result
 
-## Test Code
-# if __name__ == '__main__':
+
+# Order that make sure next cell is a neighbor of the current cell (breadth first traversal does not guarantee this)
+# def traversal_order(grid, start_row, start_col, allow_diagonal = False):
+#     bft = breadth_first_traversal(grid, start_row, start_col)
+
+#     result = []
+#     visited = [False for _ in range(len(bft))]
+
+#     result.append(bft[0])
+#     visited[0] = True
+#     current_cell = bft[0]
+
+#     while (len(result) < len(bft)): # while result list is not full
+#         # we now want to find the neighbor cell of current_cell that is "closest" in the bft list and has not yet been visited
+#         #print("Current cell:", current_cell)
+#         for i in range(len(bft)):   # iterate through all cells in bft from "closest" to "farthest"
+#             if (visited[i] == False):
+#                 cell = bft[i]
+#                 # Check if cell is neighbor to current_cell
+#                 dx = abs(cell[0] - current_cell[0])
+#                 dy = abs(cell[1] - current_cell[1])
+#                 if (allow_diagonal and max(dx, dy) == 1) or (not allow_diagonal and dx + dy == 1):
+#                     # neighbor found!
+#                     result.append(cell)
+#                     visited[i] = True
+#                     current_cell = cell
+#                     break
+#             if (i == len(bft) - 1):
+#                 # no neighbor found... Instead, we add the closest unvisited cell to current_cell
+#                 closest_cell = (float('inf'), float('inf'))
+#                 for j in range(len(bft)):
+#                     if (visited[j] == False):
+#                         # Check if this cell is closer than the current closest
+#                         if (abs(bft[j][0] - current_cell[0]) + abs(bft[j][1] - current_cell[1]) < abs(closest_cell[0] - current_cell[0]) + abs(closest_cell[1] - current_cell[1])):
+#                             closest_cell = bft[j]
+#                 # Add the closest unvisited cell to the result
+#                 # if (closest_cell != (float('inf'), float('inf'))):
+#                 #     result.append(bft[closest_cell_index])
+#                 #     visited[closest_cell_index] = True
+#                 #     current_cell = bft[closest_cell_index]
+#                 # else:
+#                 #     raise ValueError("No unvisited cells left, but result list is not full. This should never happen.")
+                
+#     return result
+
+
+# Order that make sure next cell is a neighbor of the current cell (breadth first traversal does not guarantee this)
+def traversal_order(grid, start_row, start_col, allow_diagonal=False):
+    bft = breadth_first_traversal(grid, start_row, start_col)
+
+    result = []
+    visited = [False for _ in range(len(bft))]
+
+    result.append(bft[0])
+    visited[0] = True
+    current_cell = bft[0]
+
+    while len(result) < len(bft):  # while result list is not full
+        found_neighbor = False
+
+        # try to find a neighbor of current_cell that hasn't been visited
+        for i in range(len(bft)):
+            if not visited[i]:
+                cell = bft[i]
+                dx = abs(cell[0] - current_cell[0])
+                dy = abs(cell[1] - current_cell[1])
+
+                if (allow_diagonal and max(dx, dy) == 1) or (not allow_diagonal and dx + dy == 1):
+                    # neighbor found!
+                    result.append(cell)
+                    visited[i] = True
+                    current_cell = cell
+                    found_neighbor = True
+                    break
+
+        if not found_neighbor:
+            # no neighbor found — jump to the *closest* unvisited cell
+            min_dist = float("inf")
+            next_index = None
+
+            for i in range(len(bft)):
+                if not visited[i]:
+                    cell = bft[i]
+                    dx = abs(cell[0] - current_cell[0])
+                    dy = abs(cell[1] - current_cell[1])
+
+                    # Calculate euclidean distance
+                    dist = math.sqrt(dx**2 + dy**2)
+
+                    if dist < min_dist:
+                        min_dist = dist
+                        next_index = i
+
+            if next_index is not None:
+                result.append(bft[next_index])
+                visited[next_index] = True
+                current_cell = bft[next_index]
+
+    return result
+
+
+# Test Code
+if __name__ == '__main__':
   
-#     # Given input matrix
-#     grid = np.array([[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-#                     [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
-#                     [0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0],
-#                     [0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0],
-#                     [0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0],
-#                     [0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
-#                     [0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
-#                     [0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
-#                     [0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1],
-#                     [0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1],
-#                     [0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1]])
+    # Given input matrix
+    grid = np.array([[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                    [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
+                    [0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0],
+                    [0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0],
+                    [0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0],
+                    [0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+                    [0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+                    [0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+                    [0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [0,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [0,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1],
+                    [0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1],
+                    [0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1],
+                    [0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1],
+                    [0,0,0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1]])
 
 
 
-#     # vis, False, sizeof vis)
+    # vis, False, sizeof vis)
 
-#     print(breadth_first_traversal(grid, 10, 10))
+    print(traversal_order(grid, 10, 10))

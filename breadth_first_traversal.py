@@ -12,7 +12,7 @@ dRow = [ -1, 0, 1, 0]
 dCol = [ 0, 1, 0, -1]
 
 # TODO PRØV AT LAV DIAGONASL I DET HER. så skal vi måske også passe metadata til tsunami om om det er med eller uden diagnonal (så kan den mirror valget for sin nabo finding halløj)
-
+# Man kan også ændre på rækkefælgen af dRow og dCol så den f.eks. altid prøver at gå højre først, så ned, så venstre, så op (eller sådan noget)
 
 # Function to check if a cell
 # is be visited or not

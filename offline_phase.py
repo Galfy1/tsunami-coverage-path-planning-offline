@@ -5,7 +5,7 @@ import os
 import numpy as np
 from shapely.geometry import Point, Polygon
 #from sympy import Add
-from breadth_first_traversal import breadth_first_traversal, traversal_order
+from breadth_first_traversal import breadth_first_traversal, single_drone_traversal_order
 import matplotlib.pyplot as plt
 import pickle
 
@@ -120,21 +120,37 @@ def main(args=None) -> None:
     print("DRONE START GRID COORDS:", home_cell)
 
 
-    #print(grid)
-    traversal_order_cells = traversal_order(grid, home_cell[0], home_cell[1], allow_diagonal=True) # start somewhere in the middle TODO: make sure start point is valid (inside polygon and not in no-fly zone)
-    #print(traversal_order_cells)
-    traversal_order_gps = convert_cells_to_gps(traversal_order_cells, x_coords, y_coords)
-    print("TRAVERSAL ORDER GPS COORDS:", traversal_order_gps)
+    # #print(grid)
+    # traversal_order_cells = traversal_order(grid, home_cell[0], home_cell[1], allow_diagonal=True) # start somewhere in the middle TODO: make sure start point is valid (inside polygon and not in no-fly zone)
+    # #print(traversal_order_cells)
+    # traversal_order_gps = convert_cells_to_gps(traversal_order_cells, x_coords, y_coords)
+    # print("TRAVERSAL ORDER GPS COORDS:", traversal_order_gps)
+
+    bf_traversal_cells = breadth_first_traversal(grid, home_cell[0], home_cell[1])
+    bf_traversal_gps = convert_cells_to_gps(bf_traversal_cells, x_coords, y_coords)
+
+
+    data_to_save = {
+        'home_cell': home_cell,
+        'home_gps': DRONE_START,
+        'bf_traversal_cells': bf_traversal_cells,
+        'bf_traversal_gps': bf_traversal_gps,
+        'x_gps_coords': x_coords,
+        'y_gps_coords': y_coords
+    }
+    # Save traversal order to a file using pickle
+    with open('bf_traversal.pkl', 'wb') as fp:
+        pickle.dump(data_to_save, fp)
 
     #print(grid)
     #print("Grid shape:", grid.shape)
 
-    # heatmap plot
-    heatmap = np.zeros((len(y_coords), len(x_coords)), dtype=int)
-    for idx, (i, j) in enumerate(traversal_order_cells):
-        heatmap[i, j] = idx + 1  # Start from 1 for better visibility
-    plt.imshow(heatmap, origin="lower", cmap="hot", interpolation='nearest')
-    plt.show()
+    # # heatmap plot
+    # heatmap = np.zeros((len(y_coords), len(x_coords)), dtype=int)
+    # for idx, (i, j) in enumerate(traversal_order_cells):
+    #     heatmap[i, j] = idx + 1  # Start from 1 for better visibility
+    # plt.imshow(heatmap, origin="lower", cmap="hot", interpolation='nearest')
+    # plt.show()
 
     # TODO, VI SKAL LIGE VÆLGE OM ORIGIN I VOReS GRID I OPPE I VENSTRE HJØRNE ELLER NEDRE VENSTRE HJØRNE
     # NÅR VI PRINTER GRID, SER DEN UD PÅ EN MÅDE (forket i forhold til missionplanner)
@@ -167,21 +183,18 @@ def main(args=None) -> None:
 
 
 
-    data_to_save = {
-        'home_pos_gps': DRONE_START,
-        'traversal_order_gps': traversal_order_gps
-    }
-    # Save traversal order to a file using pickle
-    with open('traversal_order_gps.pkl', 'wb') as fp:
-        pickle.dump(data_to_save, fp)
 
 
 
 
 
+    # PLOTTING SINGLE DRONE PATH ON A MAP
 
 
-
+    traversal_order_cells = single_drone_traversal_order(grid, home_cell[0], home_cell[1], allow_diagonal=True) # start somewhere in the middle TODO: make sure start point is valid (inside polygon and not in no-fly zone)
+    #print(traversal_order_cells)
+    traversal_order_gps = convert_cells_to_gps(traversal_order_cells, x_coords, y_coords)
+    print("TRAVERSAL ORDER GPS COORDS:", traversal_order_gps)
 
 
     import folium

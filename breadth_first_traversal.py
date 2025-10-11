@@ -122,7 +122,7 @@ def breadth_first_traversal(grid, start_row, start_col):
 
 
 # Order that make sure next cell is a neighbor of the current cell (breadth first traversal does not guarantee this)
-def traversal_order(grid, start_row, start_col, allow_diagonal=False):
+def single_drone_traversal_order(grid, start_row, start_col, allow_diagonal=False):
     bft = breadth_first_traversal(grid, start_row, start_col)
 
     result = []

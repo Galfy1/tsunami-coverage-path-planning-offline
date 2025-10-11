@@ -135,8 +135,6 @@ def main(args=None) -> None:
         'home_gps': DRONE_START,
         'bf_traversal_cells': bf_traversal_cells,
         'bf_traversal_gps': bf_traversal_gps,
-        'x_gps_coords': x_coords,
-        'y_gps_coords': y_coords
     }
     # Save traversal order to a file using pickle
     with open('bf_traversal.pkl', 'wb') as fp:

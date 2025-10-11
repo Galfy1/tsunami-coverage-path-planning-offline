@@ -11,6 +11,8 @@ import math
 dRow = [ -1, 0, 1, 0]
 dCol = [ 0, 1, 0, -1]
 
+# TODO PRØV AT LAV DIAGONASL I DET HER. så skal vi måske også passe metadata til tsunami om om det er med eller uden diagnonal (så kan den mirror valget for sin nabo finding halløj)
+
 
 # Function to check if a cell
 # is be visited or not

@@ -12,6 +12,8 @@ import pickle
 import csv
 
 DRONE_START = (37.4122067992952, -121.998909115791) # (lat, lon) aka (y,x)
+ALLOW_DIAGONAL_IN_BFT = True 
+ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING = False # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
 
 
 def convert_cells_to_gps(traversal_order_cells, x_coords, y_coords):
@@ -126,7 +128,7 @@ def main(args=None) -> None:
     # traversal_order_gps = convert_cells_to_gps(traversal_order_cells, x_coords, y_coords)
     # print("TRAVERSAL ORDER GPS COORDS:", traversal_order_gps)
 
-    bf_traversal_cells = breadth_first_traversal(grid, home_cell[0], home_cell[1])
+    bf_traversal_cells = breadth_first_traversal(grid, home_cell[0], home_cell[1], allow_diagonal=ALLOW_DIAGONAL_IN_BFT)
     bf_traversal_gps = convert_cells_to_gps(bf_traversal_cells, x_coords, y_coords)
 
 
@@ -186,10 +188,11 @@ def main(args=None) -> None:
 
 
 
-    # PLOTTING SINGLE DRONE PATH ON A MAP
+    # PLOTTING SINGLE DRONE PATH ON A MAP (or just BFT points if you want)
+    PLOT_TYPE = 'bft_and_path' # "just_bft" or "bft_and_path"
 
 
-    traversal_order_cells = single_drone_traversal_order(grid, home_cell[0], home_cell[1], allow_diagonal=True) # start somewhere in the middle TODO: make sure start point is valid (inside polygon and not in no-fly zone)
+    traversal_order_cells = single_drone_traversal_order(grid, home_cell[0], home_cell[1], allow_diagonal_in_bft=ALLOW_DIAGONAL_IN_BFT, allow_diagonal_in_path=ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING) # start somewhere in the middle TODO: make sure start point is valid (inside polygon and not in no-fly zone)
     #print(traversal_order_cells)
     traversal_order_gps = convert_cells_to_gps(traversal_order_cells, x_coords, y_coords)
     print("TRAVERSAL ORDER GPS COORDS:", traversal_order_gps)
@@ -200,8 +203,7 @@ def main(args=None) -> None:
     import matplotlib.colors as colors
     from matplotlib import colormaps
     # List of coordinates (using a shortened sample for demonstration; will replace with full list)
-
-    PLOT_TYPE = 'both' # 'points' or 'line' or 'both'
+    
 
     # Center the map around the average of coordinates
     avg_lat = sum(lat for lat, lon in traversal_order_gps) / len(traversal_order_gps)
@@ -211,19 +213,21 @@ def main(args=None) -> None:
     m = folium.Map(location=[avg_lat, avg_lon], zoom_start=18)
 
     # Set up a colormap
-    amount_of_colored_points = len(traversal_order_gps)  # You can change this to a lower number if you want to "zoom in" on the colormap
+    amount_of_colored_points = len(bf_traversal_gps)  # You can change this to a lower number if you want to "zoom in" on the colormap
     #amount_of_colored_points = 60
     cmap = cm.get_cmap('inferno', amount_of_colored_points)  # You can change colormap to what you want
 
-    if (PLOT_TYPE == 'points' or PLOT_TYPE == 'both'):
-        #Add points to the map with colors based on their order
-        for i, (lat, lon) in enumerate(traversal_order_gps):
-            # Convert RGBA to hex
-            color = colors.rgb2hex(cmap(i)[:3])
-            folium.CircleMarker(location=[lat, lon], radius=5, color=color, fill=True, fill_opacity=0.7).add_to(m)
-    if (PLOT_TYPE == 'line' or PLOT_TYPE == 'both'):
-        # Add a line connecting the points
+    # Plot BF traversal points
+    for i, (lat, lon) in enumerate(bf_traversal_gps):
+        # (Add points to the map with colors based on their order)
+        color = colors.rgb2hex(cmap(i)[:3]) # Convert RGBA to hex
+        folium.CircleMarker(location=[lat, lon], radius=5, color=color, fill=True, fill_opacity=0.7).add_to(m)
+
+    if (not (PLOT_TYPE == 'just_bft')):
+        # Plot traversal order path
         folium.PolyLine(locations=traversal_order_gps, color="blue", weight=2.0, opacity=1, ).add_to(m)
+        pass
+
 
     script_dir = os.path.dirname(os.path.abspath(__file__))  # Get script directory
     map_path = os.path.join(script_dir, "map.html")          # Set filename

@@ -8,8 +8,12 @@ import math
     # I DERES PAPER: er hver point ved siden af hidnanden fordi dronen vælger de points der er tættest på
 
 # Direction vectors
-dRow = [ -1, 0, 1, 0]
-dCol = [ 0, 1, 0, -1]
+dRow_4way = [ -1, 0, 1, 0]
+dCol_4way = [ 0, 1, 0, -1]
+
+dRow_8way = [ -1, -1, 0, 1, 1, 1, 0, -1]
+dCol_8way = [ 0, 1, 1, 1, 0, -1, -1, -1]
+
 
 # TODO PRØV AT LAV DIAGONASL I DET HER. så skal vi måske også passe metadata til tsunami om om det er med eller uden diagnonal (så kan den mirror valget for sin nabo finding halløj)
 # Man kan også ændre på rækkefælgen af dRow og dCol så den f.eks. altid prøver at gå højre først, så ned, så venstre, så op (eller sådan noget)
@@ -36,7 +40,7 @@ def is_valid(grid, vis, x, y):
 # Function to perform the BFS traversal
 # grid: 2D numpy array where 1 = flyable, 0 = no-fly zone
 # start_row, start_col: starting coordinates for the BFS
-def breadth_first_traversal(grid, start_row, start_col):
+def breadth_first_traversal(grid, start_row, start_col, allow_diagonal = False):
 
     # Error check
     if (grid[start_row][start_col] == 0):
@@ -67,13 +71,29 @@ def breadth_first_traversal(grid, start_row, start_col):
 
         #q.pop()
 
-        # Go to the adjacent cells (not diagonal)
-        for i in range(4):
-            adjx = x + dRow[i]
-            adjy = y + dCol[i]
-            if (is_valid(grid, vis, adjx, adjy)):
-                q.append((adjx, adjy))
-                vis[adjx][adjy] = True
+        # # Go to the adjacent cells (not diagonal)
+        # for i in range(4):
+        #     adjx = x + dRow[i]
+        #     adjy = y + dCol[i]
+        #     if (is_valid(grid, vis, adjx, adjy)):
+        #         q.append((adjx, adjy))
+        #         vis[adjx][adjy] = True
+
+        # If diagonal movement is allowed, check the diagonal cells
+        if allow_diagonal == False:
+            for i in range(4):
+                adjx = x + dRow_4way[i]
+                adjy = y + dCol_4way[i]
+                if (is_valid(grid, vis, adjx, adjy)):
+                    q.append((adjx, adjy))
+                    vis[adjx][adjy] = True
+        else:
+            for i in range(8):
+                adjx = x + dRow_8way[i]
+                adjy = y + dCol_8way[i]
+                if (is_valid(grid, vis, adjx, adjy)):
+                    q.append((adjx, adjy))
+                    vis[adjx][adjy] = True
 
     return result
 
@@ -124,8 +144,8 @@ def breadth_first_traversal(grid, start_row, start_col):
 
 
 # Order that make sure next cell is a neighbor of the current cell (breadth first traversal does not guarantee this)
-def single_drone_traversal_order(grid, start_row, start_col, allow_diagonal=False):
-    bft = breadth_first_traversal(grid, start_row, start_col)
+def single_drone_traversal_order(grid, start_row, start_col, allow_diagonal_in_bft=False, allow_diagonal_in_path=False):
+    bft = breadth_first_traversal(grid, start_row, start_col, allow_diagonal=allow_diagonal_in_bft)
 
     result = []
     visited = [False for _ in range(len(bft))]
@@ -144,7 +164,7 @@ def single_drone_traversal_order(grid, start_row, start_col, allow_diagonal=Fals
                 dx = abs(cell[0] - current_cell[0])
                 dy = abs(cell[1] - current_cell[1])
 
-                if (allow_diagonal and max(dx, dy) == 1) or (not allow_diagonal and dx + dy == 1):
+                if (allow_diagonal_in_path and max(dx, dy) == 1) or (not allow_diagonal_in_path and dx + dy == 1):
                     # neighbor found!
                     result.append(cell)
                     visited[i] = True

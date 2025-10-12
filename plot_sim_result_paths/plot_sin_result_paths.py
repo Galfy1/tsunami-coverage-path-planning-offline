@@ -8,8 +8,6 @@ import matplotlib.colors as colors
 
 # SIMLUATON LOGS CAN BE FOUND IN ~/.ros/log/
 
-LAUNCH_FILE_NAMESPACE = "application" # has to match the namespace in the launch file when the log was created
-MAX_DRONE_COUNT = 3
 
 DIR_TO_THIS_FILE = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE = DIR_TO_THIS_FILE + "/launch.log"
@@ -17,7 +15,7 @@ LOG_FILE = DIR_TO_THIS_FILE + "/launch.log"
 def main(args=None) -> None:
 
 
-    drone_namespaces = [f"{LAUNCH_FILE_NAMESPACE}.drone_{i}" for i in range(1, MAX_DRONE_COUNT + 1)] # its assumed drones are named drone_1, drone_2, ... (in the original launch file)
+    ############## Extract flight paths from log file ##############
 
     # Regex pattern to match the flight path log lines
     # Example line:
@@ -34,23 +32,23 @@ def main(args=None) -> None:
             match = pattern.search(line)
             if match:
                 ns = match.group("namespace")
-                if ns in drone_namespaces:
-                    coords_text = match.group("coords")
-                    # Safely evaluate list of tuples from the string
-                    try:
-                        coords = eval(coords_text, {"__builtins__": None}, {})
-                        flight_paths[ns] = coords
-                    except Exception as e:
-                        print(f"Could not parse coords for {ns}: {e}")
+                coords_text = match.group("coords")
+                # Safely evaluate list of tuples from the string
+                try:
+                    coords = eval(coords_text, {"__builtins__": None}, {})
+                    flight_paths[ns] = coords
+                except Exception as e:
+                    print(f"Could not parse coords for {ns}: {e}")
 
 
 
-    # Plot paths using folium
+    ############## Plot paths using folium ##############
+
     if flight_paths:
         # Center map at the first coordinate of the first drone
         first_drone = next(iter(flight_paths))
-        start_coords = flight_paths[first_drone][0] if flight_paths[first_drone] else (0, 0)
-        m = folium.Map(location=start_coords, zoom_start=15)
+        start_coords = flight_paths[first_drone][0]
+        m = folium.Map(location=start_coords, zoom_start=18)
 
         path_colors = ['red', 'blue', 'green', 'purple', 'orange', 'darkred', 'lightred', 'beige', 'darkblue', 'darkgreen']
 
@@ -65,7 +63,8 @@ def main(args=None) -> None:
         print("No flight paths found in the log.")
 
 
-    # Add bf traversal points to map
+    ############## Add bf traversal points to map ##############
+
     with open('bf_traversal.pkl', 'rb') as fp:
         bf_data = pickle.load(fp)
         bf_traversal_gps = bf_data['bf_traversal_gps']
@@ -77,10 +76,12 @@ def main(args=None) -> None:
         folium.CircleMarker(location=[lat, lon], radius=1, color='black', fill=True, fill_opacity=0.7).add_to(m)
 
     
-    # Save map to HTML file
+    ############## Save map to HTML file ##############
     map_file = DIR_TO_THIS_FILE + "/drone_flight_paths.html"
     m.save(map_file)
     print(f"Flight paths and BFT map saved to {map_file}")
+
+    
 
 if __name__ == '__main__':
     main()

@@ -122,6 +122,17 @@ def main(args=None) -> None:
     print("DRONE START GRID COORDS:", home_cell)
 
 
+    # CENTROID
+    # https://en.wikipedia.org/wiki/Centroid#Of_a_polygon 
+    # https://stackoverflow.com/questions/75699024/finding-the-centroid-of-a-polygon-in-python 
+    # https://shapely.readthedocs.io/en/2.0.6/reference/shapely.centroid.html 
+    # ANGLE FRA START:
+    # ...
+    # Aligning grid with drone start position:
+    # MÅSKE: rotate hele gridden med vinkel. OG SÅ BAGEFTER, fltter vi gridded op, så home cellen er der hvor den var originalt (alle punkterne følger her med i flytningen)...
+        # nej... det vil ændre shapen af polygonen... fuck
+
+
     # #print(grid)
     # traversal_order_cells = traversal_order(grid, home_cell[0], home_cell[1], allow_diagonal=True) # start somewhere in the middle TODO: make sure start point is valid (inside polygon and not in no-fly zone)
     # #print(traversal_order_cells)

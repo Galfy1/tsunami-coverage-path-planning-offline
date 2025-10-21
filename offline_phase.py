@@ -147,6 +147,8 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_coords, y_coo
 
 
 
+    # Måske også return centroid og long_centroid_line hvis vi skal plotte dem senere
+
 
 
 
@@ -158,7 +160,7 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_coords, y_coo
     #     new_y = centroid.y + distance * math.sin(angle)
     #     aligned_coords.append((new_x, new_y))
 
-    return aligned_coords
+    return aligned_coords, centroid, long_centroid_line # (centroid and long_centroid_line can be used for plotting)
 
 
 

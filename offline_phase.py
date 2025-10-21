@@ -3,7 +3,8 @@
 
 import os
 import numpy as np
-from shapely.geometry import Point, Polygon
+from shapely.geometry import Point, Polygon, LineString
+import math
 #from sympy import Add
 from breadth_first_traversal import breadth_first_traversal, single_drone_traversal_order
 import matplotlib.pyplot as plt
@@ -16,20 +17,152 @@ ALLOW_DIAGONAL_IN_BFT = True
 ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING = False # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
 
 
-def convert_cells_to_gps(traversal_order_cells, x_coords, y_coords):
-    traversal_order_gps = []
-    for (i, j) in traversal_order_cells:
+def convert_cells_to_gps(cells, x_coords, y_coords):
+    result_gps = []
+    for (i, j) in cells:
         lat = y_coords[i]
         lon = x_coords[j]
-        traversal_order_gps.append((lat, lon))
+        result_gps.append((lat, lon))
 
     # make sure the traversal order gps is in the middle of the cells:
     grid_res = x_coords[1] - x_coords[0]  # assuming uniform spacing. will be positive if x_coords is increasing, negative if decreasing
-    traversel_order_gps_centered = []
-    for (lat, lon) in traversal_order_gps:
-        traversel_order_gps_centered.append((lat + (grid_res / 2), lon + (grid_res / 2)))
+    result_gps_centered = []
+    for (lat, lon) in result_gps:
+        result_gps_centered.append((lat + (grid_res / 2), lon + (grid_res / 2)))
 
-    return traversel_order_gps_centered
+    return result_gps_centered
+
+
+
+# def scale_linestring(linestring: LineString, scale: float) -> LineString:
+
+#     # scalie equally in both directions from p1 to p2
+
+#     p1 = linestring.coords[0]
+#     p2 = linestring.coords[1]
+
+#     angle = math.atan2(p2.y - p1.y, p2.x - p1.x)
+#     length = linestring.length
+#     new_length = length * scale
+#     extend_length = (new_length - length) / 2
+    
+#     new_p1_x = p2.x - new_length * math.cos(angle)
+#     new_p1_y = p2.y - new_length * math.sin(angle)
+#     new_p2_x = p1.x + new_length * math.cos(angle)
+#     new_p2_y = p1.y + new_length * math.sin(angle)
+#     new_linestring = LineString([Point(new_p1_x, new_p1_y), Point(new_p2_x, new_p2_y)])
+#     return new_linestring
+
+
+def scale_linestring(linestring: LineString, scale: float) -> LineString:
+
+    if len(linestring.coords) != 2:
+        raise ValueError("This function only supports LineStrings with exactly two points")
+
+    (x1, y1), (x2, y2) = linestring.coords
+
+    # compute direction vector (cartesian form)
+    dx = x2 - x1
+    dy = y2 - y1
+    length = math.hypot(dx, dy) # hypot is simply sqrt(dx*dx + dy*dy) (Pythagorean theorem)
+
+    if length == 0:
+        raise ValueError("Cannot scale a zero-length line")
+
+    # normalize direction vector (i.e. scale it down to length 1) - this way, dx_normalized and dy_normalized represents how much of the length is in x and y direction respectively
+    dx_normalized = dx / length
+    dy_normalized = dy / length
+
+    # compute how much to extend each end
+    new_length = length * scale
+    extend_length = (new_length - length) / 2
+
+    # move each endpoint along the direction vector
+    # (e.g. (dx_normalized * extend_length) is basically saying "how much of the extend_length is in the x direction")
+    # this will work for linestrings in all directions (the sign of the direction vector components will take care of that)
+    new_p1 = (x1 - dx_normalized * extend_length, y1 - dy_normalized * extend_length) # "-" is used to move point "backwards" along the direction vector
+    new_p2 = (x2 + dx_normalized * extend_length, y2 + dy_normalized * extend_length) # "+" is used to move point "forwards" along the direction vector
+
+    return LineString([new_p1, new_p2])
+    
+    
+def extend_p2_in_linestring(linestring: LineString, extend_length: float) -> LineString:
+    # if len(linestring.coords) != 2:
+    #     raise ValueError("This function only supports LineStrings with exactly two points")
+
+    # (x1, y1), (x2, y2) = linestring.coords
+
+    # # compute direction vector (cartesian form)
+    # dx = x2 - x1
+    # dy = y2 - y1
+    # length = math.hypot(dx, dy) # hypot is simply sqrt(dx*dx + dy*dy) (Pythagorean theorem)
+
+    # if length == 0:
+    #     raise ValueError("Cannot extend a zero-length line")
+
+    # # normalize direction vector (i.e. scale it down to length 1) - this way, dx_normalized and dy_normalized represents how much of the length is in x and y direction respectively
+    # dx_normalized = dx / length
+    # dy_normalized = dy / length
+
+    # # move endpoint p2 along the direction vector
+    # new_p2 = (x2 + dx_normalized * extend_length, y2 + dy_normalized * extend_length) # "+" is used to move point "forwards" along the direction vector
+
+    # return LineString([ (x1, y1), new_p2 ])
+
+    pass
+
+
+# https://www.matematikbanken.dk/id/158/ 
+
+def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_coords, y_coords, grid_res):
+
+    aligned_coords = []
+
+    # https://en.wikipedia.org/wiki/Centroid#Of_a_polygon 
+    # https://stackoverflow.com/questions/75699024/finding-the-centroid-of-a-polygon-in-python 
+    # https://shapely.readthedocs.io/en/stable/reference/shapely.Polygon.html#shapely.Polygon.centroid  
+    centroid = polygon.centroid  # Point(lon, lat)
+    centroid_line = LineString([Point(home_gps[1], home_gps[0]), centroid]) # Point(lon, lat)
+    long_centroid_line = scale_linestring(centroid_line, 20) # make it longer in both directions to ensure it crosses the entire polygon. 20 is arbitrary, just needs to be large enough.
+
+
+    # find linjen der går fra ppunktet og vinkelret ind til centroid linjen.
+    # (måske kan sharely bruges til dette)
+    # "scaler" puntet væk fra centroid linjen, så den snapper til multipla af grid resolution
+
+
+    for x_coord in x_coords:
+        for y_coord in y_coords:
+
+            gps_point = Point(x_coord, y_coord)
+
+            closest_point_on_centroid_line = long_centroid_line.interpolate(long_centroid_line.project(gps_point))
+            direction_line = LineString([gps_point, closest_point_on_centroid_line])
+            direction_line_length = direction_line.length
+
+            # Figure out how much to extend point to snap to grid res
+            extend_amount = round(direction_line_length / grid_res) * grid_res
+
+            extended_direction_line = # BRUG function der extender p2 i linestring med extend_amount (tjek lige at grid punktet er p2. og ikke punket på centroid linjen)
+
+
+
+
+
+
+    # for coord in coords:
+    #     point = Point(coord)
+    #     angle = math.atan2(point.y - centroid.y, point.x - centroid.x)
+    #     distance = point.distance(centroid)
+    #     new_x = centroid.x + distance * math.cos(angle)
+    #     new_y = centroid.y + distance * math.sin(angle)
+    #     aligned_coords.append((new_x, new_y))
+
+    return aligned_coords
+
+
+
+
 
 
 def main(args=None) -> None:
@@ -122,15 +255,7 @@ def main(args=None) -> None:
     print("DRONE START GRID COORDS:", home_cell)
 
 
-    # CENTROID
-    # https://en.wikipedia.org/wiki/Centroid#Of_a_polygon 
-    # https://stackoverflow.com/questions/75699024/finding-the-centroid-of-a-polygon-in-python 
-    # https://shapely.readthedocs.io/en/2.0.6/reference/shapely.centroid.html 
-    # ANGLE FRA START:
-    # ...
-    # Aligning grid with drone start position:
-    # MÅSKE: rotate hele gridden med vinkel. OG SÅ BAGEFTER, fltter vi gridded op, så home cellen er der hvor den var originalt (alle punkterne følger her med i flytningen)...
-        # nej... det vil ændre shapen af polygonen... fuck
+
 
 
     # #print(grid)

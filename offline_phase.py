@@ -188,6 +188,8 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
             # Eller er det et problem vi stadig vil få? tænk over det
 
             # TODO Problem. hvis der er for mange punkter i en retning, kan det være den ikke kan snappe dem uden der er overlappende tunkerne.. hvilket ikke er godt (det burde give en error med det error tjek jeg ikke har lavet endnu)
+                    # hvis det er the case.. så eveneutl kun snap perpendicular til centroid linjen?
+            # TODO Potentielt problem. hvis punkterne ikke ender med at være uniformly spaced, selv efter jeg snapper i begge reninger.. så kan vi resikere små områder der ikke bliver covered.
             
             # TODO Potentielt problem. efter allignement er de godt nok linet op.. men det tager bft og path planning ikke højde for.. så måske den springer frem og tilbage og derfor får endnu større hakker
             # Potentielt fix: i path planning processen kigger man ikke kun på bft, men OGSÅ de alligned gps coords. og så biaser man den til at vælge naboen, som resulterer i den mindte vinkelforskel i forhold til centroid linjen.

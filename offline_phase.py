@@ -193,6 +193,7 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
                     # men det bliver svært.. for den vælger jo ikke bare den første nabo nu.. den vælger den første entry i bft'en som er en nabo. tænk over det
                             # jeg definere "vinkelforskel" til: vinkelforskel realtiv til centroid linjen
                             # (måske man kan få den til at tage højrde for begge. måske den kan følge BFT'en, medmindre BFT'ens svar er over THRESHOLD dårligere vinkelforskel end en anden nabo --> så vælge den den anden nabo
+                    # kald det noget med at "bias den" i rapporten
 
 
             # TODO DEN STORE OPGAVE: Shaprely er x,y... altså linær koordinater

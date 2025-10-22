@@ -183,6 +183,15 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
             # FOR DEBUGGING END
 
 
+            # TODO Problem. hvis vi snapper til grid res, hvis den den ene vej være for lidt punkter til at dække hele vejen over. og den anden vej være for mange..
+            # MÅSKE: man skal snappe til den der hypotynuse længde i stedet? (kræver man tager centroid vinklen med i regnestykket)
+            # Eller er det et problem vi stadig vil få? tænk over det
+            
+            # TODO Potentielt problem. efter allignement er de godt nok linet op.. men det tager bft og path planning ikke højde for.. så måske den springer frem og tilbage og derfor får endnu større hakker
+            # Potentielt fix: i path planning processen kigger man ikke kun på bft, men OGSÅ de alligned gps coords. og så biaser man den til at vælge naboen, som resulterer i den mindte vinkelforskel i forhold til centroid linjen.
+                    # JA, det tror jeg ville være en god ide! så når den path planner, tager den ikke bare den første nabo, men den med mindst vinkel forskel!
+
+
             # TODO DEN STORE OPGAVE: Shaprely er x,y... altså linær koordinater
                     # men lat og long er ikke helt linære ... derfor den der direction_line f.eks. er skæv. fordi den er lavet ud fra at x og y er linære. måske centroid også er lidt off så. 
                     # måske kig på noget projection halløj https://shapely.readthedocs.io/en/stable/manual.html#other-transformations 

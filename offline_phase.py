@@ -187,6 +187,7 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
                     # men lat og long er ikke helt linære ... derfor den der direction_line f.eks. er skæv. fordi den er lavet ud fra at x og y er linære. måske centroid også er lidt off så. 
                     # måske kig på noget projection halløj https://shapely.readthedocs.io/en/stable/manual.html#other-transformations 
                     # ELLER OGSÅ, skal vi bare sige der kan opstå slight innacuaries pga det, men det accepteres pga simpliciteten.
+                    # DET HER ER NOK GRUNDEN TIL DEN "wigler" lidt på kortet
 
 
             # TODO VIGTIGT! sikre der ikke ligger gps waypoints oveni hindanden!!! så skal den give en error.

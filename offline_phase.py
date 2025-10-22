@@ -17,7 +17,7 @@ DRONE_START = (37.4122067992952, -121.998909115791) # (lat, lon) aka (y,x)
 CAMERA_COVERAGE_LEN = 10  # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
 ALLOW_DIAGONAL_IN_BFT = False 
 ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING = True # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
-ENABLE_CENTROID_ALIGNMENT = False # (warning: each waypoint may be shifted up to +- grid_res/2 in both lat and lon direction when this is enabled. this might push the waypoint slightly outside polygon or in a no-fly zone)
+ENABLE_CENTROID_ALIGNMENT = True # (warning: each waypoint may be shifted up to +- grid_res/2 in both lat and lon direction when this is enabled. this might push the waypoint slightly outside polygon or in a no-fly zone)
 
 debug_counter = 0 # TODO remove
 debug_point = Point(0,0) # TODO remove
@@ -147,13 +147,12 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
 
             coord = Point(x_coord, y_coord) # here, coord is a point! (x,y) aka (lon, lat) - NOT the usual (lat, lon)
 
-            #closest_point_on_centroid_line = long_centroid_line.interpolate(long_centroid_line.project(coord))
             closest_point_on_centroid_line = nearest_points(long_centroid_line, coord)[0] # https://shapely.readthedocs.io/en/2.0.4/manual.html#nearest-points 
             direction_line = LineString([closest_point_on_centroid_line, coord]) # line from coord to centroid line
             direction_line_length = direction_line.length
 
             # Figure out how much to extend point to snap to grid res
-            grid_res = grid_res_x # TODO FOR DEBUGGING.
+            grid_res = grid_res_y # TODO FOR DEBUGGING.
             extend_amount = round(direction_line_length / grid_res) * grid_res # https://stackoverflow.com/questions/7859147/round-in-numpy-to-nearest-step 
 
             extended_direction_line = extend_p2_in_linestring(direction_line, extend_amount) # p2 is the waypoint
@@ -165,10 +164,15 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
             # TODO FOR DEBUGGING:
             global debug_counter, debug_line, debug_point
             debug_counter += 1
-            if debug_counter == 40:
+            if debug_counter == 20:
                 debug_line = direction_line # TODO remove
                 debug_point = coord # TODO remove
             # FOR DEBUGGING END
+
+
+            # TODO DEN STORE OPGAVE: Shaprely er x,y... altså linær koordinater
+                    # men lat og long er ikke helt linære ... derfor den der direction_line f.eks. er skæv. fordi den er lavet ud fra at x og y er linære. måske centroid også er lidt off så. 
+                    # måske kig på noget projection halløj https://shapely.readthedocs.io/en/stable/manual.html#other-transformations 
 
 
             # aligned_coords.append({
@@ -199,8 +203,7 @@ def meters_to_lat_long_dif(current_approx_lat, meters: float):
     EARTH_RADIUS = 6371000.0  # mean Earth radius in meters
 
     lat_diff = (meters / EARTH_RADIUS) * (180 / math.pi)
-    lon_diff = lat_diff # TODO FOR DEBUGGIG
-    #lon_diff = (meters / EARTH_RADIUS) * (180 / math.pi) / math.cos(math.radians(current_approx_lat))
+    lon_diff = (meters / EARTH_RADIUS) * (180 / math.pi) / math.cos(math.radians(current_approx_lat))
 
     return lat_diff, lon_diff
 
@@ -254,7 +257,7 @@ def main(args=None) -> None:
     # Define grid resolution (degrees)
     #grid_res = 0.00005  # TODO NOT TRUE: I CHANGE IT - ~11 meters // https://lucidar.me/en/online-unit-converter-length-to-angle/convert-degrees-to-meters/ (earth radius = 6373000 m) 
 
-    grid_res_x, grid_res_y = meters_to_lat_long_dif(DRONE_START[0], CAMERA_COVERAGE_LEN)
+    grid_res_y, grid_res_x = meters_to_lat_long_dif(DRONE_START[0], CAMERA_COVERAGE_LEN)
     #grid_res_y = 0.0001
 
     # Compute bounding box of polygon

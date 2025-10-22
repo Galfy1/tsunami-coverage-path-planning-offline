@@ -195,6 +195,11 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
                             # (måske man kan få den til at tage højrde for begge. måske den kan følge BFT'en, medmindre BFT'ens svar er over THRESHOLD dårligere vinkelforskel end en anden nabo --> så vælge den den anden nabo
                     # kald det noget med at "bias den" i rapporten
 
+            # TODO "Firkant problemet".. (se paint)
+                # potentiel løsning: lav en funktion til at detecte og centroid alignemnt skal slås til eller fra. 
+                    # Det gør den ved at beregne polygonens "summet kantvinkel - kalder jeg det". 
+                    # aka gå igennem alle edges i polygonen og kig på dens vinkel (relativt til x-aksen) og gang dem med længden (der er så den vægtet "kant vinklen"). Sum alle de vægtede kantvinkelr op
+                            # hvis den summede kantvinkel er 45grader +-22,5grader, så aktiver centroid alignemnt. ellers slå det fra.
 
             # TODO DEN STORE OPGAVE: Shaprely er x,y... altså linær koordinater
                     # men lat og long er ikke helt linære ... derfor den der direction_line f.eks. er skæv. fordi den er lavet ud fra at x og y er linære. måske centroid også er lidt off så. 

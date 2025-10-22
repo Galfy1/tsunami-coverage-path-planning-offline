@@ -14,34 +14,30 @@ import pickle
 import csv
 
 DRONE_START = (37.4122067992952, -121.998909115791) # (lat, lon) aka (y,x)
+CAMERA_COVERAGE_LEN = 10  # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
 ALLOW_DIAGONAL_IN_BFT = False 
 ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING = True # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
 ENABLE_CENTROID_ALIGNMENT = False # (warning: each waypoint may be shifted up to +- grid_res/2 in both lat and lon direction when this is enabled. this might push the waypoint slightly outside polygon or in a no-fly zone)
 
+debug_counter = 0 # TODO remove
+debug_point = Point(0,0) # TODO remove
+debug_line = LineString() # TODO remove
 
-def convert_cells_to_gps(cells, x_axis_coords, y_axis_coords, enable_centroid_alignment=False, polygon=None):
+def convert_cells_to_gps(cells, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y, enable_centroid_alignment=False, polygon=None):
 
-    # adding half grid res to get to center of cell, instead of just the lower left corner
-    grid_res = x_axis_coords[1] - x_axis_coords[0]  # assuming uniform spacing. will be positive if x_axis_coords is increasing, negative if decreasing
-    y_axis_coords_cent = y_axis_coords + (grid_res / 2)
-    x_axis_coords_cent = x_axis_coords + (grid_res / 2)
+    # Add half grid res to get to center of cell, instead of just the lower left corner
+    #grid_res = x_axis_coords[1] - x_axis_coords[0]  # assuming uniform spacing. will be positive if x_axis_coords is increasing, negative if decreasing
+    y_axis_coords_cent = y_axis_coords + (grid_res_y / 2)
+    x_axis_coords_cent = x_axis_coords + (grid_res_x / 2)
 
-    # convert cells to gps coords
+    # Convert cells to gps coords
     result_gps_centered = []
     for (i, j) in cells:
         lat = y_axis_coords_cent[i]
         lon = x_axis_coords_cent[j]
         result_gps_centered.append((lat, lon))
 
-    # # make sure gps waypoints are in the middle of the cells:
-    
-    # result_gps_centered = []
-    # for (lat, lon) in result_gps:
-    #     result_gps_centered.append((lat + (grid_res / 2), lon + (grid_res / 2)))
-    # x_axis_coords = x_axis_coords + (grid_res / 2)
-    # y_axis_coords = y_axis_coords + (grid_res / 2)
-
-    # Align coords with centroid angle (these coords are no longer parallel with the lat/lon axes.)
+    # Align coords with centroid angle (if enabled)
     if enable_centroid_alignment:
 
         # NOTE: this done here, instead of early in the offline phase, as the aligned coords would otherwise break the grid structure used for BFS traversal
@@ -50,7 +46,7 @@ def convert_cells_to_gps(cells, x_axis_coords, y_axis_coords, enable_centroid_al
             raise ValueError("Polygon must be provided when centroid alignment is enabled")
 
         info_for_plotting = {}
-        prealigned_to_aligned_coords_dict, info_for_plotting["centroid"], info_for_plotting["centroid_line"], info_for_plotting["long_centroid_line"] = align_coords_with_centroid_angle(polygon, DRONE_START, x_axis_coords_cent, y_axis_coords_cent, grid_res) 
+        prealigned_to_aligned_coords_dict, info_for_plotting["centroid"], info_for_plotting["centroid_line"], info_for_plotting["long_centroid_line"] = align_coords_with_centroid_angle(polygon, DRONE_START, x_axis_coords_cent, y_axis_coords_cent, grid_res_x, grid_res_y) 
 
         # now convert to aligned coords
         result_gps_aligned = []
@@ -63,13 +59,6 @@ def convert_cells_to_gps(cells, x_axis_coords, y_axis_coords, enable_centroid_al
         
     return result_gps_centered, None
 
-    # TODO DET NEDENSTÅENDE SKAL NOK I SIN EGEN FUNCTIO NOG KALDES ET HELT ANDET STED
-    # # make sure the traversal order gps is in the middle of the cells:
-    # grid_res = x_axis_coords[1] - x_axis_coords[0]  # assuming uniform spacing. will be positive if x_coords is increasing, negative if decreasing
-    # result_gps_centered = []
-    # for (lat, lon) in result_gps:
-    #     result_gps_centered.append((lat + (grid_res / 2), lon + (grid_res / 2)))
-    #return result_gps_centered
 
 
 # def convert_cells_to_gps_aligned(cells, aligned_coords):
@@ -93,85 +82,6 @@ def convert_cells_to_gps(cells, x_axis_coords, y_axis_coords, enable_centroid_al
     #     result_gps_centered.append((lat + (grid_res / 2), lon + (grid_res / 2)))
 
     return result_gps_centered
-
-
-
-# def scale_linestring(linestring: LineString, scale: float) -> LineString:
-
-#     # scalie equally in both directions from p1 to p2
-
-#     p1 = linestring.coords[0]
-#     p2 = linestring.coords[1]
-
-#     angle = math.atan2(p2.y - p1.y, p2.x - p1.x)
-#     length = linestring.length
-#     new_length = length * scale
-#     extend_length = (new_length - length) / 2
-    
-#     new_p1_x = p2.x - new_length * math.cos(angle)
-#     new_p1_y = p2.y - new_length * math.sin(angle)
-#     new_p2_x = p1.x + new_length * math.cos(angle)
-#     new_p2_y = p1.y + new_length * math.sin(angle)
-#     new_linestring = LineString([Point(new_p1_x, new_p1_y), Point(new_p2_x, new_p2_y)])
-#     return new_linestring
-
-
-# def scale_linestring(linestring: LineString, scale: float) -> LineString:
-
-#     if len(linestring.coords) != 2:
-#         raise ValueError("This function only supports LineStrings with exactly two points")
-
-#     (x1, y1), (x2, y2) = linestring.coords
-
-#     # compute direction vector (cartesian form)
-#     dx = x2 - x1
-#     dy = y2 - y1
-#     length = math.hypot(dx, dy) # hypot is simply sqrt(dx*dx + dy*dy) (Pythagorean theorem)
-
-#     if length == 0:
-#         raise ValueError("Cannot scale a zero-length line")
-
-#     # normalize direction vector (i.e. scale it down to length 1) - this way, dx_normalized and dy_normalized represents how much of the length is in x and y direction respectively
-#     dx_normalized = dx / length
-#     dy_normalized = dy / length
-
-#     # compute how much to extend each end
-#     new_length = length * scale
-#     extend_length = (new_length - length) / 2
-
-#     # move each endpoint along the direction vector
-#     # (e.g. (dx_normalized * extend_length) is basically saying "how much of the extend_length is in the x direction")
-#     # this will work for linestrings in all directions (the sign of the direction vector components will take care of that)
-#     new_p1 = (x1 - dx_normalized * extend_length, y1 - dy_normalized * extend_length) # "-" is used to move point "backwards" along the direction vector
-#     new_p2 = (x2 + dx_normalized * extend_length, y2 + dy_normalized * extend_length) # "+" is used to move point "forwards" along the direction vector
-
-#     return LineString([new_p1, new_p2])
-    
-    
-# def extend_p2_in_linestring(linestring: LineString, extend_length: float) -> LineString:
-#     # if len(linestring.coords) != 2:
-#     #     raise ValueError("This function only supports LineStrings with exactly two points")
-
-#     # (x1, y1), (x2, y2) = linestring.coords
-
-#     # # compute direction vector (cartesian form)
-#     # dx = x2 - x1
-#     # dy = y2 - y1
-#     # length = math.hypot(dx, dy) # hypot is simply sqrt(dx*dx + dy*dy) (Pythagorean theorem)
-
-#     # if length == 0:
-#     #     raise ValueError("Cannot extend a zero-length line")
-
-#     # # normalize direction vector (i.e. scale it down to length 1) - this way, dx_normalized and dy_normalized represents how much of the length is in x and y direction respectively
-#     # dx_normalized = dx / length
-#     # dy_normalized = dy / length
-
-#     # # move endpoint p2 along the direction vector
-#     # new_p2 = (x2 + dx_normalized * extend_length, y2 + dy_normalized * extend_length) # "+" is used to move point "forwards" along the direction vector
-
-#     # return LineString([ (x1, y1), new_p2 ])
-
-#     pass
 
 
 def _get_line_properties(linestring: LineString):
@@ -219,15 +129,11 @@ def extend_p2_in_linestring(linestring: LineString, extend_length: float) -> Lin
     return LineString([(x1, y1), new_p2])
 
 
-
-
-
-
 # https://www.matematikbanken.dk/id/158/ 
 
-def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, y_axis_coords, grid_res):
-
-    prealigned_to_aligned_coords_dict = {}
+def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y):
+    
+    prealigned_to_aligned_coords_dict = {} # (note, this holds entries for all points, not just the ones inside the polygon - but that's okay)
 
     # https://en.wikipedia.org/wiki/Centroid#Of_a_polygon 
     # https://stackoverflow.com/questions/75699024/finding-the-centroid-of-a-polygon-in-python 
@@ -241,11 +147,13 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
 
             coord = Point(x_coord, y_coord) # here, coord is a point! (x,y) aka (lon, lat) - NOT the usual (lat, lon)
 
+            #closest_point_on_centroid_line = long_centroid_line.interpolate(long_centroid_line.project(coord))
             closest_point_on_centroid_line = nearest_points(long_centroid_line, coord)[0] # https://shapely.readthedocs.io/en/2.0.4/manual.html#nearest-points 
             direction_line = LineString([closest_point_on_centroid_line, coord]) # line from coord to centroid line
             direction_line_length = direction_line.length
 
             # Figure out how much to extend point to snap to grid res
+            grid_res = grid_res_x # TODO FOR DEBUGGING.
             extend_amount = round(direction_line_length / grid_res) * grid_res # https://stackoverflow.com/questions/7859147/round-in-numpy-to-nearest-step 
 
             extended_direction_line = extend_p2_in_linestring(direction_line, extend_amount) # p2 is the waypoint
@@ -253,6 +161,15 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
 
             prealigned_to_aligned_coords_dict[(coord.y, coord.x)] = (coord_aligned[1], coord_aligned[0]) # (lon, lat) # TODO THIS IS THE CORRECT ONE
             #prealigned_to_aligned_coords_dict[(coord.y, coord.x)] = (coord.y, coord.x) # stored as (lat,long) - thats why its y,x # TODO DEBUGGING!! DEN OVENFOR SKAL BRUGE I STEDET
+
+            # TODO FOR DEBUGGING:
+            global debug_counter, debug_line, debug_point
+            debug_counter += 1
+            if debug_counter == 40:
+                debug_line = direction_line # TODO remove
+                debug_point = coord # TODO remove
+            # FOR DEBUGGING END
+
 
             # aligned_coords.append({
             #     "aligned_waypoint": (waypoint_aligned.x, waypoint_aligned.y),
@@ -275,6 +192,17 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
 
 
 
+def meters_to_lat_long_dif(current_approx_lat, meters: float):
+    # https://stackoverflow.com/questions/7477003/calculating-new-longitude-latitude-from-old-n-meters 
+    # The conversion from meters is not the same for latitude and longitude - we account for this here.
+
+    EARTH_RADIUS = 6371000.0  # mean Earth radius in meters
+
+    lat_diff = (meters / EARTH_RADIUS) * (180 / math.pi)
+    lon_diff = lat_diff # TODO FOR DEBUGGIG
+    #lon_diff = (meters / EARTH_RADIUS) * (180 / math.pi) / math.cos(math.radians(current_approx_lat))
+
+    return lat_diff, lon_diff
 
 
 
@@ -325,14 +253,16 @@ def main(args=None) -> None:
 
     # Define grid resolution (degrees)
     #grid_res = 0.00005  # TODO NOT TRUE: I CHANGE IT - ~11 meters // https://lucidar.me/en/online-unit-converter-length-to-angle/convert-degrees-to-meters/ (earth radius = 6373000 m) 
-    grid_res = 0.0001
+
+    grid_res_x, grid_res_y = meters_to_lat_long_dif(DRONE_START[0], CAMERA_COVERAGE_LEN)
+    #grid_res_y = 0.0001
 
     # Compute bounding box of polygon
     minx, miny, maxx, maxy = polygon.bounds
 
     # Generate pre-aligned x and y "grid" coords. (these coords are parallel with the lat/lon axes.)
-    x_axis_coords = np.arange(minx, maxx, grid_res) 
-    y_axis_coords = np.arange(miny, maxy, grid_res)
+    x_axis_coords = np.arange(minx, maxx, grid_res_x) 
+    y_axis_coords = np.arange(miny, maxy, grid_res_y)
 
     #### Construct fly_nofly_grid #####
     # Create "grid" to keep track of which cells are inside the polygon and not in no-fly zone (0 = outside polygon or in no-fly zone, 1 = inside polygon and not in no-fly zone)
@@ -384,7 +314,7 @@ def main(args=None) -> None:
     # print("TRAVERSAL ORDER GPS COORDS:", traversal_order_gps)
 
     bf_traversal_cells = breadth_first_traversal(fly_nofly_grid, home_cell[0], home_cell[1], allow_diagonal=ALLOW_DIAGONAL_IN_BFT)
-    bf_traversal_gps, _ = convert_cells_to_gps(bf_traversal_cells, x_axis_coords, y_axis_coords, enable_centroid_alignment=ENABLE_CENTROID_ALIGNMENT, polygon=polygon)
+    bf_traversal_gps, _ = convert_cells_to_gps(bf_traversal_cells, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y, enable_centroid_alignment=ENABLE_CENTROID_ALIGNMENT, polygon=polygon)
 
 
     data_to_save = {
@@ -449,7 +379,7 @@ def main(args=None) -> None:
 
     traversal_order_cells = single_drone_traversal_order(fly_nofly_grid, home_cell[0], home_cell[1], allow_diagonal_in_bft=ALLOW_DIAGONAL_IN_BFT, allow_diagonal_in_path=ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING) # start somewhere in the middle TODO: make sure start point is valid (inside polygon and not in no-fly zone)
     #print(traversal_order_cells)
-    traversal_order_gps, info_for_plotting = convert_cells_to_gps(traversal_order_cells, x_axis_coords, y_axis_coords, enable_centroid_alignment=ENABLE_CENTROID_ALIGNMENT, polygon=polygon)
+    traversal_order_gps, info_for_plotting = convert_cells_to_gps(traversal_order_cells, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y, enable_centroid_alignment=ENABLE_CENTROID_ALIGNMENT, polygon=polygon)
     #print("TRAVERSAL ORDER GPS COORDS:", traversal_order_gps)
 
 
@@ -490,6 +420,11 @@ def main(args=None) -> None:
         # Plot long centroid line
         folium.PolyLine(locations=[(info_for_plotting['long_centroid_line'].coords[0][1], info_for_plotting['long_centroid_line'].coords[0][0]), (info_for_plotting['long_centroid_line'].coords[1][1], info_for_plotting['long_centroid_line'].coords[1][0])], color="black", weight=3.0, opacity=1, dash_array='5, 10').add_to(m)
 
+    # TODO for debugging
+    if ENABLE_CENTROID_ALIGNMENT:
+        folium.PolyLine(locations=[(debug_line.coords[0][1], debug_line.coords[0][0]), (debug_line.coords[1][1], debug_line.coords[1][0])], color="red", weight=2.0, opacity=1, ).add_to(m)
+        folium.CircleMarker(location=[debug_point.y, debug_point.x], radius=6, color="purple", fill=True, fill_opacity=0.9).add_to(m)
+    # Debugging end
 
     script_dir = os.path.dirname(os.path.abspath(__file__))  # Get script directory
     map_path = os.path.join(script_dir, "map.html")          # Set filename

@@ -190,6 +190,9 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
             # TODO Potentielt problem. efter allignement er de godt nok linet op.. men det tager bft og path planning ikke højde for.. så måske den springer frem og tilbage og derfor får endnu større hakker
             # Potentielt fix: i path planning processen kigger man ikke kun på bft, men OGSÅ de alligned gps coords. og så biaser man den til at vælge naboen, som resulterer i den mindte vinkelforskel i forhold til centroid linjen.
                     # JA, det tror jeg ville være en god ide! så når den path planner, tager den ikke bare den første nabo, men den med mindst vinkel forskel!
+                    # men det bliver svært.. for den vælger jo ikke bare den første nabo nu.. den vælger den første entry i bft'en som er en nabo. tænk over det
+                            # jeg definere "vinkelforskel" til: vinkelforskel realtiv til centroid linjen
+                            # (måske man kan få den til at tage højrde for begge. måske den kan følge BFT'en, medmindre BFT'ens svar er over THRESHOLD dårligere vinkelforskel end en anden nabo --> så vælge den den anden nabo
 
 
             # TODO DEN STORE OPGAVE: Shaprely er x,y... altså linær koordinater

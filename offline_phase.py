@@ -26,6 +26,7 @@ def convert_cells_to_gps(cells, x_axis_coords, y_axis_coords, prealigned_to_alig
         lon = x_axis_coords[j]
         result_gps.append((lat, lon))
 
+    # if we have aligned coords, convert from pre-aligned to aligned coords
     if prealigned_to_aligned_coords_dict != None:
         # now convert to aligned coords
         result_gps_aligned = []

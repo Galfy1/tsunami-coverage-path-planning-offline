@@ -17,7 +17,7 @@ DRONE_START = (37.4122067992952, -121.998909115791) # (lat, lon) aka (y,x)
 CAMERA_COVERAGE_LEN = 10  # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
 ALLOW_DIAGONAL_IN_BFT = False 
 ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING = True # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
-ENABLE_CENTROID_ALIGNMENT = True # (warning: each waypoint may be shifted up to +- grid_res/2 in both lat and lon direction when this is enabled. this might push the waypoint slightly outside polygon or in a no-fly zone)
+ENABLE_CENTROID_ALIGNMENT = False # (warning: each waypoint may be shifted up to +- grid_res/2 in both lat and lon direction when this is enabled. this might push the waypoint slightly outside polygon or in a no-fly zone)
 
 debug_counter = 0 # TODO remove
 debug_point = Point(0,0) # TODO remove
@@ -142,10 +142,15 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
     centroid_line = LineString([Point(home_gps[1], home_gps[0]), centroid]) # Point(lon, lat)
     long_centroid_line = scale_linestring(centroid_line, 20) # make it longer in both directions to ensure it crosses the entire polygon. 20 is arbitrary, just needs to be large enough.
 
+    centroid_line_perpen = # TODO  # this is a line that is perpendicular to the centroid line and crosses p1 on the centroid line
+
+
     for x_coord in x_axis_coords:
         for y_coord in y_axis_coords:
 
             coord = Point(x_coord, y_coord) # here, coord is a point! (x,y) aka (lon, lat) - NOT the usual (lat, lon)
+
+            #### SNAPPING PERPENDICULAR TO CENTROID LINE ####
 
             closest_point_on_centroid_line = nearest_points(long_centroid_line, coord)[0] # https://shapely.readthedocs.io/en/2.0.4/manual.html#nearest-points 
             direction_line = LineString([closest_point_on_centroid_line, coord]) # line from coord to centroid line
@@ -153,10 +158,17 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
 
             # Figure out how much to extend point to snap to grid res
             grid_res = grid_res_y # TODO FOR DEBUGGING.
-            extend_amount = round(direction_line_length / grid_res) * grid_res # https://stackoverflow.com/questions/7859147/round-in-numpy-to-nearest-step 
-
+            extend_amount = round(direction_line_length / grid_res) * grid_res - direction_line_length # https://stackoverflow.com/questions/7859147/round-in-numpy-to-nearest-step 
             extended_direction_line = extend_p2_in_linestring(direction_line, extend_amount) # p2 is the waypoint
-            coord_aligned = extended_direction_line.coords[1] # extract p2 from linestring (i.e. the extended waypoint) (.coords are x,y tuples, not Point objects, which is good!)
+
+            coord_aligned = extended_direction_line.coords[1] # extract p2 from linestring (i.e. the extended coord) (.coords are x,y tuples, not Point objects, which is good!)
+
+            #### SNAPPING PARALLEL TO CENTROID LINE ####
+
+            # TODO 
+
+
+            #### STORE ALLIGNED COORD IN LOOKUP DICT ####
 
             prealigned_to_aligned_coords_dict[(coord.y, coord.x)] = (coord_aligned[1], coord_aligned[0]) # (lon, lat) # TODO THIS IS THE CORRECT ONE
             #prealigned_to_aligned_coords_dict[(coord.y, coord.x)] = (coord.y, coord.x) # stored as (lat,long) - thats why its y,x # TODO DEBUGGING!! DEN OVENFOR SKAL BRUGE I STEDET
@@ -165,7 +177,8 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
             global debug_counter, debug_line, debug_point
             debug_counter += 1
             if debug_counter == 20:
-                debug_line = direction_line # TODO remove
+                print(f"yupper: {direction_line_length+extend_amount} - {extended_direction_line.length}")
+                debug_line = extended_direction_line # TODO remove
                 debug_point = coord # TODO remove
             # FOR DEBUGGING END
 
@@ -173,6 +186,10 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
             # TODO DEN STORE OPGAVE: Shaprely er x,y... altså linær koordinater
                     # men lat og long er ikke helt linære ... derfor den der direction_line f.eks. er skæv. fordi den er lavet ud fra at x og y er linære. måske centroid også er lidt off så. 
                     # måske kig på noget projection halløj https://shapely.readthedocs.io/en/stable/manual.html#other-transformations 
+                    # ELLER OGSÅ, skal vi bare sige der kan opstå slight innacuaries pga det, men det accepteres pga simpliciteten.
+
+
+            # TODO VIGTIGT! sikre der ikke ligger gps waypoints oveni hindanden!!! så skal den give en error.
 
 
             # aligned_coords.append({

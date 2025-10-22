@@ -4,6 +4,7 @@
 import os
 import numpy as np
 from shapely.geometry import Point, Polygon, LineString
+from shapely.ops import nearest_points
 import math
 #from sympy import Add
 from breadth_first_traversal import breadth_first_traversal, single_drone_traversal_order
@@ -54,8 +55,66 @@ def convert_cells_to_gps(cells, x_coords, y_coords):
 #     return new_linestring
 
 
-def scale_linestring(linestring: LineString, scale: float) -> LineString:
+# def scale_linestring(linestring: LineString, scale: float) -> LineString:
 
+#     if len(linestring.coords) != 2:
+#         raise ValueError("This function only supports LineStrings with exactly two points")
+
+#     (x1, y1), (x2, y2) = linestring.coords
+
+#     # compute direction vector (cartesian form)
+#     dx = x2 - x1
+#     dy = y2 - y1
+#     length = math.hypot(dx, dy) # hypot is simply sqrt(dx*dx + dy*dy) (Pythagorean theorem)
+
+#     if length == 0:
+#         raise ValueError("Cannot scale a zero-length line")
+
+#     # normalize direction vector (i.e. scale it down to length 1) - this way, dx_normalized and dy_normalized represents how much of the length is in x and y direction respectively
+#     dx_normalized = dx / length
+#     dy_normalized = dy / length
+
+#     # compute how much to extend each end
+#     new_length = length * scale
+#     extend_length = (new_length - length) / 2
+
+#     # move each endpoint along the direction vector
+#     # (e.g. (dx_normalized * extend_length) is basically saying "how much of the extend_length is in the x direction")
+#     # this will work for linestrings in all directions (the sign of the direction vector components will take care of that)
+#     new_p1 = (x1 - dx_normalized * extend_length, y1 - dy_normalized * extend_length) # "-" is used to move point "backwards" along the direction vector
+#     new_p2 = (x2 + dx_normalized * extend_length, y2 + dy_normalized * extend_length) # "+" is used to move point "forwards" along the direction vector
+
+#     return LineString([new_p1, new_p2])
+    
+    
+# def extend_p2_in_linestring(linestring: LineString, extend_length: float) -> LineString:
+#     # if len(linestring.coords) != 2:
+#     #     raise ValueError("This function only supports LineStrings with exactly two points")
+
+#     # (x1, y1), (x2, y2) = linestring.coords
+
+#     # # compute direction vector (cartesian form)
+#     # dx = x2 - x1
+#     # dy = y2 - y1
+#     # length = math.hypot(dx, dy) # hypot is simply sqrt(dx*dx + dy*dy) (Pythagorean theorem)
+
+#     # if length == 0:
+#     #     raise ValueError("Cannot extend a zero-length line")
+
+#     # # normalize direction vector (i.e. scale it down to length 1) - this way, dx_normalized and dy_normalized represents how much of the length is in x and y direction respectively
+#     # dx_normalized = dx / length
+#     # dy_normalized = dy / length
+
+#     # # move endpoint p2 along the direction vector
+#     # new_p2 = (x2 + dx_normalized * extend_length, y2 + dy_normalized * extend_length) # "+" is used to move point "forwards" along the direction vector
+
+#     # return LineString([ (x1, y1), new_p2 ])
+
+#     pass
+
+
+def _get_line_properties(linestring: LineString):
+    """Extracts useful geometric info from a two-point LineString."""
     if len(linestring.coords) != 2:
         raise ValueError("This function only supports LineStrings with exactly two points")
 
@@ -64,52 +123,43 @@ def scale_linestring(linestring: LineString, scale: float) -> LineString:
     # compute direction vector (cartesian form)
     dx = x2 - x1
     dy = y2 - y1
-    length = math.hypot(dx, dy) # hypot is simply sqrt(dx*dx + dy*dy) (Pythagorean theorem)
+    length = math.hypot(dx, dy)
 
     if length == 0:
-        raise ValueError("Cannot scale a zero-length line")
+        raise ValueError("Cannot operate on a zero-length line")
 
     # normalize direction vector (i.e. scale it down to length 1) - this way, dx_normalized and dy_normalized represents how much of the length is in x and y direction respectively
     dx_normalized = dx / length
     dy_normalized = dy / length
 
-    # compute how much to extend each end
+    return (x1, y1), (x2, y2), dx_normalized, dy_normalized, length
+
+
+def scale_linestring(linestring: LineString, scale: float) -> LineString:
+    (x1, y1), (x2, y2), dx_n, dy_n, length = _get_line_properties(linestring) # (dx_n means "x component of normalized direction vector")
+
     new_length = length * scale
     extend_length = (new_length - length) / 2
 
     # move each endpoint along the direction vector
     # (e.g. (dx_normalized * extend_length) is basically saying "how much of the extend_length is in the x direction")
-    # this will work for linestrings in all directions (the sign of the direction vector components will take care of that)
-    new_p1 = (x1 - dx_normalized * extend_length, y1 - dy_normalized * extend_length) # "-" is used to move point "backwards" along the direction vector
-    new_p2 = (x2 + dx_normalized * extend_length, y2 + dy_normalized * extend_length) # "+" is used to move point "forwards" along the direction vector
+    new_p1 = (x1 - dx_n * extend_length, y1 - dy_n * extend_length) # "-" is used to move point "backwards" along the direction vector
+    new_p2 = (x2 + dx_n * extend_length, y2 + dy_n * extend_length) # "+" is used to move point "forwards" along the direction vector
 
     return LineString([new_p1, new_p2])
-    
-    
+
+
 def extend_p2_in_linestring(linestring: LineString, extend_length: float) -> LineString:
-    # if len(linestring.coords) != 2:
-    #     raise ValueError("This function only supports LineStrings with exactly two points")
+    (x1, y1), (x2, y2), dx_n, dy_n, _ = _get_line_properties(linestring)
 
-    # (x1, y1), (x2, y2) = linestring.coords
+    # move endpoint p2 along the direction vector
+    new_p2 = (x2 + dx_n * extend_length, y2 + dy_n * extend_length) # "+" is used to move point "forwards" along the direction vector
 
-    # # compute direction vector (cartesian form)
-    # dx = x2 - x1
-    # dy = y2 - y1
-    # length = math.hypot(dx, dy) # hypot is simply sqrt(dx*dx + dy*dy) (Pythagorean theorem)
+    return LineString([(x1, y1), new_p2])
 
-    # if length == 0:
-    #     raise ValueError("Cannot extend a zero-length line")
 
-    # # normalize direction vector (i.e. scale it down to length 1) - this way, dx_normalized and dy_normalized represents how much of the length is in x and y direction respectively
-    # dx_normalized = dx / length
-    # dy_normalized = dy / length
 
-    # # move endpoint p2 along the direction vector
-    # new_p2 = (x2 + dx_normalized * extend_length, y2 + dy_normalized * extend_length) # "+" is used to move point "forwards" along the direction vector
 
-    # return LineString([ (x1, y1), new_p2 ])
-
-    pass
 
 
 # https://www.matematikbanken.dk/id/158/ 
@@ -126,41 +176,29 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_coords, y_coo
     long_centroid_line = scale_linestring(centroid_line, 20) # make it longer in both directions to ensure it crosses the entire polygon. 20 is arbitrary, just needs to be large enough.
 
 
-    # find linjen der går fra ppunktet og vinkelret ind til centroid linjen.
-    # (måske kan sharely bruges til dette)
-    # "scaler" puntet væk fra centroid linjen, så den snapper til multipla af grid resolution
-
-
     for x_coord in x_coords:
         for y_coord in y_coords:
 
-            gps_point = Point(x_coord, y_coord)
+            waypoint = Point(x_coord, y_coord)
 
-            closest_point_on_centroid_line = long_centroid_line.interpolate(long_centroid_line.project(gps_point))
-            direction_line = LineString([gps_point, closest_point_on_centroid_line])
+            closest_point_on_centroid_line = nearest_points(long_centroid_line, waypoint)[0] # https://shapely.readthedocs.io/en/2.0.4/manual.html#nearest-points 
+            direction_line = LineString([closest_point_on_centroid_line, waypoint]) # line from waypoint to centroid line
             direction_line_length = direction_line.length
 
             # Figure out how much to extend point to snap to grid res
-            extend_amount = round(direction_line_length / grid_res) * grid_res
+            extend_amount = round(direction_line_length / grid_res) * grid_res # https://stackoverflow.com/questions/7859147/round-in-numpy-to-nearest-step 
 
-            extended_direction_line = # BRUG function der extender p2 i linestring med extend_amount (tjek lige at grid punktet er p2. og ikke punket på centroid linjen)
+            extended_direction_line = extend_p2_in_linestring(direction_line, extend_amount) # p2 is the waypoint
+            waypoint_aligned = extended_direction_line.coords[1] # extract p2 from linestring (i.e. the extended waypoint) (.coords are x,y tuples, not Point objects, which is good!)
 
+            aligned_coords.append(waypoint_aligned)
 
+    # Convert aligned_coords from list to numpy array (split into x and y arrays)
+    aligned_coords_np = np.array(aligned_coords)
+    x_coords_aligned = aligned_coords_np[:, 0]
+    y_coords_aligned = aligned_coords_np[:, 1]
 
-    # Måske også return centroid og long_centroid_line hvis vi skal plotte dem senere
-
-
-
-
-    # for coord in coords:
-    #     point = Point(coord)
-    #     angle = math.atan2(point.y - centroid.y, point.x - centroid.x)
-    #     distance = point.distance(centroid)
-    #     new_x = centroid.x + distance * math.cos(angle)
-    #     new_y = centroid.y + distance * math.sin(angle)
-    #     aligned_coords.append((new_x, new_y))
-
-    return aligned_coords, centroid, long_centroid_line # (centroid and long_centroid_line can be used for plotting)
+    return x_coords_aligned, y_coords_aligned, centroid, long_centroid_line # (centroid and long_centroid_line can be used for plotting)
 
 
 
@@ -222,6 +260,9 @@ def main(args=None) -> None:
     # Generate grid points # TODO DE KAN OGSÅ BRUGES TIL AT CONVERT TILBAGE TIL LAT LONG
     x_coords = np.arange(minx, maxx, grid_res) 
     y_coords = np.arange(miny, maxy, grid_res)
+
+    # Align grid with centroid angle
+    x_coords_aligned, y_coords_aligned, centroid, long_centroid_line = align_coords_with_centroid_angle(polygon, DRONE_START, x_coords, y_coords, grid_res)
 
     # Create empty grid
     grid = np.zeros((len(y_coords), len(x_coords)), dtype=int)

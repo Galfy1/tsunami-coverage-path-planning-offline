@@ -7,7 +7,7 @@ from shapely.geometry import Point, Polygon, LineString
 from shapely.ops import nearest_points
 import math
 #from sympy import Add
-from breadth_first_traversal import breadth_first_traversal, single_drone_traversal_order
+from breadth_first_traversal import breadth_first_traversal, single_drone_traversal_order, single_drone_traversal_order_centroid
 import matplotlib.pyplot as plt
 import pickle
 
@@ -501,8 +501,8 @@ def main(args=None) -> None:
     PLOT_TYPE = 'bft_and_path' # "just_bft" or "bft_and_path"
 
 
-    traversal_order_cells = single_drone_traversal_order(fly_nofly_grid, home_cell[0], home_cell[1], allow_diagonal_in_bft=ALLOW_DIAGONAL_IN_BFT, allow_diagonal_in_path=ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING) # start somewhere in the middle TODO: make sure start point is valid (inside polygon and not in no-fly zone)
-    #traversal_order_cells = single_drone_traversal_order_centroid(fly_nofly_grid, home_cell[0], home_cell[1], centroid_line)
+    #traversal_order_cells = single_drone_traversal_order(fly_nofly_grid, home_cell[0], home_cell[1], allow_diagonal_in_bft=ALLOW_DIAGONAL_IN_BFT, allow_diagonal_in_path=ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING) # start somewhere in the middle TODO: make sure start point is valid (inside polygon and not in no-fly zone)
+    traversal_order_cells = single_drone_traversal_order_centroid(fly_nofly_grid, home_cell[0], home_cell[1], polygon, allow_diagonal_in_path = ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING)
     traversal_order_gps, info_for_plotting = convert_cells_to_gps(traversal_order_cells, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y, enable_centroid_alignment=ENABLE_CENTROID_ALIGNMENT, polygon=polygon)
     #print("TRAVERSAL ORDER GPS COORDS:", traversal_order_gps)
 

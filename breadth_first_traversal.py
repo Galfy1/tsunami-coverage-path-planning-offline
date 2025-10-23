@@ -1,7 +1,7 @@
 from collections import deque as queue
 import numpy as np
 import math
-from shapely.geometry import Point, LineString
+from shapely.geometry import Point, LineString, Polygon
 
 # BASED ON https://www.geeksforgeeks.org/dsa/breadth-first-traversal-bfs-on-a-2d-array/
 
@@ -24,15 +24,15 @@ dCol_8way = [ 0, 1, 1, 1, 0, -1, -1, -1]
 def is_valid(grid, vis, x, y):
   
     # If cell lies out of bounds
-    if (x < 0 or y < 0 or x >= grid.shape[0] or y >= grid.shape[1]):
+    if (x < 0 or y < 0 or x >= grid.shape[1] or y >= grid.shape[0]):
         return False
 
     # If cell is already visited
-    if (vis[x][y]):
+    if (vis[y][x]):
         return False
     
     # If cell is not traversable (i.e. "no fly zone")
-    if (grid[x][y] == 0):
+    if (grid[y][x] == 0):
         return False
 
     # Otherwise
@@ -40,11 +40,11 @@ def is_valid(grid, vis, x, y):
 
 # Function to perform the BFS traversal
 # grid: 2D numpy array where 1 = flyable, 0 = no-fly zone
-# start_row, start_col: starting coordinates for the BFS
-def breadth_first_traversal(grid, start_row, start_col, allow_diagonal = False):
+# start_y, start_x: starting coordinates for the BFS (lat, lon)
+def breadth_first_traversal(grid, start_y, start_x, allow_diagonal = False):
 
     # Error check
-    if (grid[start_row][start_col] == 0):
+    if (grid[start_y][start_x] == 0):
         raise ValueError("Starting point must be within the polygon and outside no-fly zones")
 
     # Declare the visited array
@@ -58,17 +58,17 @@ def breadth_first_traversal(grid, start_row, start_col, allow_diagonal = False):
 
     # Mark the starting cell as visited
     # and push it into the queue
-    q.append(( start_row, start_col ))
-    vis[start_row][start_col] = True
+    q.append(( start_y, start_x ))
+    vis[start_y][start_x] = True
 
     # Iterate while the queue
     # is not empty
     while (len(q) > 0):
         cell = q.popleft()
-        x = cell[0]
-        y = cell[1]
+        x = cell[1]
+        y = cell[0]
         #print(grid[x][y], end = " ")
-        result.append((x, y))
+        result.append((y, x))
 
         #q.pop()
 
@@ -86,15 +86,15 @@ def breadth_first_traversal(grid, start_row, start_col, allow_diagonal = False):
                 adjx = x + dRow_4way[i]
                 adjy = y + dCol_4way[i]
                 if (is_valid(grid, vis, adjx, adjy)):
-                    q.append((adjx, adjy))
-                    vis[adjx][adjy] = True
+                    q.append((adjy, adjx ))
+                    vis[adjy][adjx] = True
         else:
             for i in range(8):
                 adjx = x + dRow_8way[i]
                 adjy = y + dCol_8way[i]
                 if (is_valid(grid, vis, adjx, adjy)):
-                    q.append((adjx, adjy))
-                    vis[adjx][adjy] = True
+                    q.append((adjx, adjx))
+                    vis[adjy][adjx] = True
 
     return result
 
@@ -145,8 +145,8 @@ def breadth_first_traversal(grid, start_row, start_col, allow_diagonal = False):
 
 
 # Order that make sure next cell is a neighbor of the current cell (breadth first traversal does not guarantee this)
-def single_drone_traversal_order(grid, start_row, start_col, allow_diagonal_in_bft=False, allow_diagonal_in_path=False):
-    bft = breadth_first_traversal(grid, start_row, start_col, allow_diagonal=allow_diagonal_in_bft)
+def single_drone_traversal_order(grid, start_y, start_x, allow_diagonal_in_bft=False, allow_diagonal_in_path=False):
+    bft = breadth_first_traversal(grid, start_y, start_x, allow_diagonal=allow_diagonal_in_bft)
 
     result = []
     visited = [False for _ in range(len(bft))]
@@ -162,8 +162,8 @@ def single_drone_traversal_order(grid, start_row, start_col, allow_diagonal_in_b
         for i in range(len(bft)):
             if not visited[i]:
                 cell = bft[i]
-                dx = abs(cell[0] - current_cell[0])
-                dy = abs(cell[1] - current_cell[1])
+                dx = abs(cell[1] - current_cell[1])
+                dy = abs(cell[0] - current_cell[0])
 
                 if (allow_diagonal_in_path and max(dx, dy) == 1) or (not allow_diagonal_in_path and dx + dy == 1):
                     # neighbor found!
@@ -181,8 +181,8 @@ def single_drone_traversal_order(grid, start_row, start_col, allow_diagonal_in_b
             for i in range(len(bft)):
                 if not visited[i]:
                     cell = bft[i]
-                    dx = abs(cell[0] - current_cell[0])
-                    dy = abs(cell[1] - current_cell[1])
+                    dx = abs(cell[1] - current_cell[1])
+                    dy = abs(cell[0] - current_cell[0])
 
                     # Calculate euclidean distance
                     dist = math.sqrt(dx**2 + dy**2)
@@ -200,46 +200,100 @@ def single_drone_traversal_order(grid, start_row, start_col, allow_diagonal_in_b
 
 
 
-def single_drone_traversal_order_centroid(grid, start_row, start_col, centroid_line: LineString, allow_diagonal_in_path = False):
-    
-    result = []
-    centroid_line_angle = math.atan2(centroid_line.coords[1][1] - centroid_line.coords[0][1],
-                                      centroid_line.coords[1][0] - centroid_line.coords[0][0])
+
+
+
+
+def find_next_cell_centroid(grid, current_cell, visited_cells, centroid_line_angle: float, allow_diagonal_in_path = True):
+
     neighbor_with_smallest_angle_diff = None  # angle diff compared to centroid line direction
 
-    waypoint_count = np.sum(grid == 1) # amount of waypoints to be visited
+    #waypoint_count = np.sum(grid == 1) # amount of waypoints to be visited
 
-    # Declare the visited array
-    vis = np.full((grid.shape[0], grid.shape[1]), False)
+    x = current_cell[1]
+    y = current_cell[0]
 
-    current_cell = (start_row, start_col)
-    result.append(current_cell)
 
+    neighbor_found = False
 
     # HUSK DET YDRE LOOP SKAL TAGE HØJDE FOR AT ANDRE KAN ÆNDRE VISISTED ARRAAYED (så vi nemmere kan implimerentere det i simmen)
     # KIG LIGE PÅ HVORDAN VI HAR GJORT DET HER I SIMMEN.
     # ligesom i find_next_cell
 
 
+    # TODO: ALTERNATIV STRATEGI: BARE VÆLG DEN FØRSTE NEIBOR DER ER FRI. (start med venstre, så op, så højre, så ned, eller sådan noget). så holder dronen altid til venstre
+
+
     # If diagonal movement is allowed, check the diagonal cells
-    if allow_diagonal_in_path == False:
-        for i in range(4):
-            adjx = x + dRow_4way[i]
-            adjy = y + dCol_4way[i]
-            if (is_valid(grid, vis, adjx, adjy)):
-                current_cell = (adjx, adjy)
-                result.append((adjx, adjy))
-                vis[adjx][adjy] = True
+    # if allow_diagonal_in_path == False: # not sure how much sense it makes to not allow diagonal here...
+    #     for i in range(4):
+    #         adjx = x + dRow_4way[i]
+    #         adjy = y + dCol_4way[i]
+    #         if (is_valid(grid, vis, adjx, adjy)):
+    #             current_cell = (adjx, adjy)
+    #             result.append((adjx, adjy))
+    #             vis[adjx][adjy] = True
+    # else:
+    for i in range(8):
+        adjx = x + dRow_8way[i]
+        adjy = y + dCol_8way[i]
+        if (is_valid(grid, visited_cells, adjx, adjy)):
+            neighbor_cell = (adjy, adjx)
+
+            # Calculate angle from current_cell to neighbor_cell
+            angle_to_neighbor = math.atan2(neighbor_cell[0] - current_cell[0], neighbor_cell[1] - current_cell[1])  # angle in radians
+
+            # Calculate angle difference to centroid line angle
+            angle_diff_rad = abs(angle_to_neighbor - centroid_line_angle)    # raw difference, but could be anywhere from 0 to 2π.
+            angle_diff_rad = min(angle_diff_rad, 2*math.pi - angle_diff_rad) # ensure in [0, pi]. This step ensures we are measuring the shorter way around the circle (e.g. 350° → 10°).
+            angle_diff_rad = min(angle_diff_rad, math.pi - angle_diff_rad)   # ensure in [0, pi/2]. Folds any obtuse angle (>90°) back into an acute one, giving [0, pi/2].
+
+            # Check if this neighbor has the smallest angle difference so far
+            if (neighbor_with_smallest_angle_diff is None) or (angle_diff_rad < neighbor_with_smallest_angle_diff[1]):
+                neighbor_with_smallest_angle_diff = (neighbor_cell, angle_diff_rad)
+
+    if neighbor_with_smallest_angle_diff != None:
+        # neighbor found!
+        return neighbor_with_smallest_angle_diff[0] # (neighbor_cell, angle_diff_rad)
     else:
-        for i in range(8):
-            adjx = x + dRow_8way[i]
-            adjy = y + dCol_8way[i]
-            if (is_valid(grid, vis, adjx, adjy)):
-                current_cell = (adjx, adjy)
-                result.append((adjx, adjy))
-                vis[adjx][adjy] = True
+        # No unvisited neighbor is found. Find the closest unvisited cell
+        min_dist = float("inf")
+        closest_cell = None
+        for cell in grid:
+            if(is_valid(grid, visited_cells, cell[1], cell[0])):
+                dx = abs(cell[1] - current_cell[1])
+                dy = abs(cell[0] - current_cell[0])
+                dist = math.sqrt(dx**2 + dy**2)  # Euclidean distance
+                if dist < min_dist:
+                    min_dist = dist
+                    closest_cell = cell
+        return closest_cell # closest unvisited cell. returns None if no more valid cells are left
+
+    
 
 
+def single_drone_traversal_order_centroid(grid, start_y, start_x, polygon: Polygon, allow_diagonal_in_path = True):
+
+    centroid = polygon.centroid  # Point(lon, lat)
+    centroid_line = LineString([Point(start_x, start_y), centroid]) # Point(lon, lat)
+
+    result = []
+    result.append((start_y, start_x))
+
+    centroid_line_angle = math.atan2(centroid.y - start_y, centroid.x - start_x)  # angle in radians
+    
+    # Declare the visited array
+    vis = np.full((grid.shape[0], grid.shape[1]), False)
+
+    while(True):
+        next_cell = find_next_cell_centroid(grid, result[-1], vis, centroid_line_angle, allow_diagonal_in_path)
+        if next_cell is None:
+            break
+
+        result.append(next_cell)
+        vis[next_cell[0]][next_cell[1]] = True
+
+    return result
 
 # Test Code
 if __name__ == '__main__':

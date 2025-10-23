@@ -18,12 +18,15 @@ CAMERA_COVERAGE_LEN = 10  # meters. coverage of the drone camera in the narrowes
 ALLOW_DIAGONAL_IN_BFT = False 
 ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING = True # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
 
-ENABLE_CENTROID_ALIGNMENT = True # (warning: each waypoint may be shifted up to +- grid_res/2 in both lat and lon direction when this is enabled. this might push the waypoint slightly outside polygon or in a no-fly zone)
+ENABLE_CENTROID_ALIGNMENT = False # (warning: each waypoint may be shifted up to +- grid_res/2 in both lat and lon direction when this is enabled. this might push the waypoint slightly outside polygon or in a no-fly zone)
 CENTROID_ALIGNMENT_DEVIATION = 0.95 # a value from 0-1. Indicates how close to full grid resolution the centroid alignment should be. 
                                    # 0 = no alignment, 1 = full alignment (i.e. snaps to a multiple of grid_res in both lat and lon direction)
                                    # example: 0.4 means grid_res*0.4 snapping
                                    # a value of 1 of very close to 1 is not recommended, as it increases the risk of overlapping waypoints after alignment
                                    # (this value is only used if ENABLE_CENTROID_ALIGNMENT is True)
+
+
+# NOTE: We have tried to keep all coords, cells, grids, etc. (y,x) aka (lat, lon) - besides shapely Point, those are (x,y)
 
 debug_counter = 0 # TODO remove
 debug_point = Point(0,0) # TODO remove
@@ -201,6 +204,7 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
     # https://en.wikipedia.org/wiki/Centroid#Of_a_polygon 
     # https://stackoverflow.com/questions/75699024/finding-the-centroid-of-a-polygon-in-python 
     # https://shapely.readthedocs.io/en/stable/reference/shapely.Polygon.html#shapely.Polygon.centroid  
+    # TODO FLYT DET HER CENTROID LINE CALC IND I single_drone_traversal_order_centroid()
     centroid = polygon.centroid  # Point(lon, lat)
     centroid_line = LineString([Point(home_gps[1], home_gps[0]), centroid]) # Point(lon, lat)
     centroid_line_long = scale_linestring(centroid_line, 20) # make it longer in both directions to ensure it crosses the entire polygon. 20 is arbitrary, just needs to be large enough.
@@ -498,7 +502,7 @@ def main(args=None) -> None:
 
 
     traversal_order_cells = single_drone_traversal_order(fly_nofly_grid, home_cell[0], home_cell[1], allow_diagonal_in_bft=ALLOW_DIAGONAL_IN_BFT, allow_diagonal_in_path=ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING) # start somewhere in the middle TODO: make sure start point is valid (inside polygon and not in no-fly zone)
-    #print(traversal_order_cells)
+    #traversal_order_cells = single_drone_traversal_order_centroid(fly_nofly_grid, home_cell[0], home_cell[1], centroid_line)
     traversal_order_gps, info_for_plotting = convert_cells_to_gps(traversal_order_cells, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y, enable_centroid_alignment=ENABLE_CENTROID_ALIGNMENT, polygon=polygon)
     #print("TRAVERSAL ORDER GPS COORDS:", traversal_order_gps)
 

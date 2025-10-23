@@ -19,7 +19,7 @@ ALLOW_DIAGONAL_IN_BFT = False
 ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING = True # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
 
 ENABLE_CENTROID_ALIGNMENT = True # (warning: each waypoint may be shifted up to +- grid_res/2 in both lat and lon direction when this is enabled. this might push the waypoint slightly outside polygon or in a no-fly zone)
-CENTROID_ALIGNMENT_DEVIATION = 0.8 # a value from 0-1. Indicates how close to full grid resolution the centroid alignment should be. 
+CENTROID_ALIGNMENT_DEVIATION = 0.95 # a value from 0-1. Indicates how close to full grid resolution the centroid alignment should be. 
                                    # 0 = no alignment, 1 = full alignment (i.e. snaps to a multiple of grid_res in both lat and lon direction)
                                    # example: 0.4 means grid_res*0.4 snapping
                                    # a value of 1 of very close to 1 is not recommended, as it increases the risk of overlapping waypoints after alignment
@@ -137,6 +137,7 @@ def extend_p2_in_linestring(linestring: LineString, extend_length: float) -> Lin
 
 # https://www.matematikbanken.dk/id/158/ 
 
+# handy when dealing with floating point precision comparisons of gps coords
 def round_waypoint(coord, decimals=6): # 6 decimal places is roughly ~0.1 meter precision
     return (round(coord[0], decimals), round(coord[1], decimals))
 

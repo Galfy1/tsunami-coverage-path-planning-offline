@@ -1,6 +1,7 @@
 from collections import deque as queue
 import numpy as np
 import math
+from shapely.geometry import Point, LineString
 
 # BASED ON https://www.geeksforgeeks.org/dsa/breadth-first-traversal-bfs-on-a-2d-array/
 
@@ -196,6 +197,48 @@ def single_drone_traversal_order(grid, start_row, start_col, allow_diagonal_in_b
                 current_cell = bft[next_index]
 
     return result
+
+
+
+def single_drone_traversal_order_centroid(grid, start_row, start_col, centroid_line: LineString, allow_diagonal_in_path = False):
+    
+    result = []
+    centroid_line_angle = math.atan2(centroid_line.coords[1][1] - centroid_line.coords[0][1],
+                                      centroid_line.coords[1][0] - centroid_line.coords[0][0])
+    neighbor_with_smallest_angle_diff = None  # angle diff compared to centroid line direction
+
+    waypoint_count = np.sum(grid == 1) # amount of waypoints to be visited
+
+    # Declare the visited array
+    vis = np.full((grid.shape[0], grid.shape[1]), False)
+
+    current_cell = (start_row, start_col)
+    result.append(current_cell)
+
+
+    # HUSK DET YDRE LOOP SKAL TAGE HØJDE FOR AT ANDRE KAN ÆNDRE VISISTED ARRAAYED (så vi nemmere kan implimerentere det i simmen)
+    # KIG LIGE PÅ HVORDAN VI HAR GJORT DET HER I SIMMEN.
+    # ligesom i find_next_cell
+
+
+    # If diagonal movement is allowed, check the diagonal cells
+    if allow_diagonal_in_path == False:
+        for i in range(4):
+            adjx = x + dRow_4way[i]
+            adjy = y + dCol_4way[i]
+            if (is_valid(grid, vis, adjx, adjy)):
+                current_cell = (adjx, adjy)
+                result.append((adjx, adjy))
+                vis[adjx][adjy] = True
+    else:
+        for i in range(8):
+            adjx = x + dRow_8way[i]
+            adjy = y + dCol_8way[i]
+            if (is_valid(grid, vis, adjx, adjy)):
+                current_cell = (adjx, adjy)
+                result.append((adjx, adjy))
+                vis[adjx][adjy] = True
+
 
 
 # Test Code

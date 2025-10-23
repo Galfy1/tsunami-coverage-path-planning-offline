@@ -17,7 +17,13 @@ DRONE_START = (37.4122067992952, -121.998909115791) # (lat, lon) aka (y,x)
 CAMERA_COVERAGE_LEN = 10  # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
 ALLOW_DIAGONAL_IN_BFT = False 
 ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING = True # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
-ENABLE_CENTROID_ALIGNMENT = False # (warning: each waypoint may be shifted up to +- grid_res/2 in both lat and lon direction when this is enabled. this might push the waypoint slightly outside polygon or in a no-fly zone)
+
+ENABLE_CENTROID_ALIGNMENT = True # (warning: each waypoint may be shifted up to +- grid_res/2 in both lat and lon direction when this is enabled. this might push the waypoint slightly outside polygon or in a no-fly zone)
+CENTROID_ALIGNMENT_DEVIATION = 0.8 # a value from 0-1. Indicates how close to full grid resolution the centroid alignment should be. 
+                                   # 0 = no alignment, 1 = full alignment (i.e. snaps to a multiple of grid_res in both lat and lon direction)
+                                   # example: 0.4 means grid_res*0.4 snapping
+                                   # a value of 1 of very close to 1 is not recommended, as it increases the risk of overlapping waypoints after alignment
+                                   # (this value is only used if ENABLE_CENTROID_ALIGNMENT is True)
 
 debug_counter = 0 # TODO remove
 debug_point = Point(0,0) # TODO remove
@@ -131,6 +137,62 @@ def extend_p2_in_linestring(linestring: LineString, extend_length: float) -> Lin
 
 # https://www.matematikbanken.dk/id/158/ 
 
+def round_waypoint(coord, decimals=6): # 6 decimal places is roughly ~0.1 meter precision
+    return (round(coord[0], decimals), round(coord[1], decimals))
+
+def snap_to_closest_free_spot(snap_line: LineString, coord: Point, grid_res, prealigned_to_aligned_coords_dict) -> Point:
+	
+    closest_point_on_snap_line = nearest_points(snap_line, coord)[0] # https://shapely.readthedocs.io/en/2.0.4/manual.html#nearest-points 
+    direction_line = LineString([closest_point_on_snap_line, coord]) # line from coord to snap line
+    direction_line_length = direction_line.length
+    if direction_line_length == 0.0:
+        return coord # already on the line, no need to snap
+
+    extend_amount = round(direction_line_length / grid_res) * grid_res - direction_line_length # https://stackoverflow.com/questions/7859147/round-in-numpy-to-nearest-step
+    extended_direction_line = extend_p2_in_linestring(direction_line, extend_amount) # p2 is the waypoint
+    coord_aligned = extended_direction_line.coords[1] # extract p2 from linestring (i.e. the extended coord) (.coords are x,y tuples, not Point object)
+
+    # check if this coord has already been assigned an aligned coord
+    dict_search_value = round_waypoint((coord_aligned[1], coord_aligned[0])) # (lat, lon) for searching in dict
+    if dict_search_value in {round_waypoint(v) for v in prealigned_to_aligned_coords_dict.values()}:
+        print("SKIBIDI 1")
+        # already assigned, try to snap using floor instead of round
+        extend_amount = math.floor(direction_line_length / grid_res) * grid_res - direction_line_length
+        extended_direction_line = extend_p2_in_linestring(direction_line, extend_amount) 
+        coord_aligned = extended_direction_line.coords[1] # 
+
+        # check if this coord has already been assigned an aligned coord
+        dict_search_value = round_waypoint((coord_aligned[1], coord_aligned[0])) # (lat, lon) for searching in dict
+        if dict_search_value in {round_waypoint(v) for v in prealigned_to_aligned_coords_dict.values()}:
+            print("SKIBIDI 2")
+            # already assigned, try to snap using ceil instead of round
+            extend_amount = math.ceil(direction_line_length / grid_res) * grid_res - direction_line_length
+            extended_direction_line = extend_p2_in_linestring(direction_line, extend_amount) 
+            coord_aligned = extended_direction_line.coords[1] 
+
+            dict_search_value = round_waypoint((coord_aligned[1], coord_aligned[0])) # (lat, lon) for searching in dict
+            if dict_search_value in {round_waypoint(v) for v in prealigned_to_aligned_coords_dict.values()}:
+                print("BURGER KING")
+                #raise ValueError("Could not find a free spot to snap the coord to without overlapping with an already assigned coord")
+                extend_amount = round(direction_line_length / (grid_res/2)) * (grid_res/2) - direction_line_length
+                extended_direction_line = extend_p2_in_linestring(direction_line, extend_amount) 
+                coord_aligned = extended_direction_line.coords[1] 
+
+        
+
+
+    # TODO FOR DEBUGGING:
+    global debug_counter, debug_line, debug_point
+    debug_counter += 1
+    if debug_counter == 21:
+        print(f"yupper: {direction_line_length+extend_amount} - {extended_direction_line.length}")
+        debug_line = extended_direction_line # TODO remove
+        debug_point = coord # TODO remove
+    # FOR DEBUGGING END
+
+    return Point(coord_aligned[0], coord_aligned[1]) 
+
+
 def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y):
     
     prealigned_to_aligned_coords_dict = {} # (note, this holds entries for all points, not just the ones inside the polygon - but that's okay)
@@ -140,9 +202,12 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
     # https://shapely.readthedocs.io/en/stable/reference/shapely.Polygon.html#shapely.Polygon.centroid  
     centroid = polygon.centroid  # Point(lon, lat)
     centroid_line = LineString([Point(home_gps[1], home_gps[0]), centroid]) # Point(lon, lat)
-    long_centroid_line = scale_linestring(centroid_line, 20) # make it longer in both directions to ensure it crosses the entire polygon. 20 is arbitrary, just needs to be large enough.
+    centroid_line_long = scale_linestring(centroid_line, 20) # make it longer in both directions to ensure it crosses the entire polygon. 20 is arbitrary, just needs to be large enough.
 
-    centroid_line_perpen = # TODO  # this is a line that is perpendicular to the centroid line and crosses p1 on the centroid line
+    arbitrary_coord = Point(x_axis_coords[5], y_axis_coords[5])
+    closest_point_on_centroid_line = nearest_points(centroid_line_long, arbitrary_coord)[0] 
+    perpen_line = LineString([closest_point_on_centroid_line, arbitrary_coord]) # this is a line that is perpendicular to the centroid line
+    perpen_line_long = scale_linestring(perpen_line, 20) # (same reason as for centroid_line_long)
 
 
     for x_coord in x_axis_coords:
@@ -152,35 +217,46 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
 
             #### SNAPPING PERPENDICULAR TO CENTROID LINE ####
 
-            closest_point_on_centroid_line = nearest_points(long_centroid_line, coord)[0] # https://shapely.readthedocs.io/en/2.0.4/manual.html#nearest-points 
-            direction_line = LineString([closest_point_on_centroid_line, coord]) # line from coord to centroid line
-            direction_line_length = direction_line.length
+            # closest_point_on_centroid_line = nearest_points(centroid_line_long, coord)[0] # https://shapely.readthedocs.io/en/2.0.4/manual.html#nearest-points 
+            # direction_line = LineString([closest_point_on_centroid_line, coord]) # line from coord to centroid line
+            # direction_line_length = direction_line.length
 
-            # Figure out how much to extend point to snap to grid res
-            grid_res = grid_res_y # TODO FOR DEBUGGING.
-            extend_amount = round(direction_line_length / grid_res) * grid_res - direction_line_length # https://stackoverflow.com/questions/7859147/round-in-numpy-to-nearest-step 
-            extended_direction_line = extend_p2_in_linestring(direction_line, extend_amount) # p2 is the waypoint
+            # # Figure out how much to extend point to snap to grid res
+            # grid_res_1 = grid_res_y # TODO FOR DEBUGGING.
+            # extend_amount = round(direction_line_length / grid_res_1) * grid_res_1 - direction_line_length # https://stackoverflow.com/questions/7859147/round-in-numpy-to-nearest-step
+            # extended_direction_line = extend_p2_in_linestring(direction_line, extend_amount) # p2 is the waypoint
 
-            coord_aligned = extended_direction_line.coords[1] # extract p2 from linestring (i.e. the extended coord) (.coords are x,y tuples, not Point objects, which is good!)
+            # coord_aligned = extended_direction_line.coords[1] # extract p2 from linestring (i.e. the extended coord) (.coords are x,y tuples, not Point object)
+            # coord_aligned = Point(coord_aligned[0], coord_aligned[1]) # convert to Point object
+
+            grid_res = grid_res_y*CENTROID_ALIGNMENT_DEVIATION + 0.00000001 # TODO FOR DEBUGGING DEN SKAL ÆNDRES!!! UD FRA TRIGONOMETRI OG CENTROID VINKEL. MEN DEN SKAL STADIG GANGES MED CENTROID_ALIGNMENT_DEVIATION
+            coord_aligned = snap_to_closest_free_spot(centroid_line_long, coord, grid_res, prealigned_to_aligned_coords_dict)
 
             #### SNAPPING PARALLEL TO CENTROID LINE ####
 
-            # TODO 
+            # closest_point_on_perpen_line = nearest_points(perpen_line_long, coord_aligned)[0]
+            # direction_line_perpen = LineString([closest_point_on_perpen_line, coord_aligned]) # line from coord to perpen line
+            # direction_line_perpen_length = direction_line_perpen.length
+            # if direction_line_perpen_length != 0.0: # if the length is 0, we are already on the line, so no need to snap (happens at the arbeitrary coord we used to create the perpen line)
+            #     # Figure out how much to extend point to snap to grid res
+            #     grid_res_2 = grid_res_x # TODO FOR DEBUGGING.
+            #     extend_amount = round(direction_line_perpen_length / grid_res_2) * grid_res_2 - direction_line_perpen_length # TODO det er nok en anden grid res... vi skal nok udregne grid res til hver at retningerne med x,y, vinklen og trigonometri
+            #     extended_direction_line_perpen = extend_p2_in_linestring(direction_line_perpen, extend_amount) # p2 is the waypoint
 
+            #     coord_aligned = extended_direction_line_perpen.coords[1] # extract p2 from linestring (i.e. the extended coord) (.coords are x,y tuples, not Point object - which is good!)
+            # else:
+            #     # Convert coord_aligned back to tuple:
+            #     coord_aligned = (coord_aligned.x, coord_aligned.y)  
 
+            grid_res = grid_res_y*CENTROID_ALIGNMENT_DEVIATION + 0.00000001 # TODO FOR DEBUGGING DEN SKAL ÆNDRES!!! UD FRA TRIGONOMETRI OG CENTROID VINKEL
+            coord_aligned = snap_to_closest_free_spot(perpen_line_long, coord_aligned, grid_res, prealigned_to_aligned_coords_dict)
+            
             #### STORE ALLIGNED COORD IN LOOKUP DICT ####
-
+            coord_aligned = (coord_aligned.x, coord_aligned.y) # convert from Point to tuple (for storage in dict)
             prealigned_to_aligned_coords_dict[(coord.y, coord.x)] = (coord_aligned[1], coord_aligned[0]) # (lon, lat) # TODO THIS IS THE CORRECT ONE
             #prealigned_to_aligned_coords_dict[(coord.y, coord.x)] = (coord.y, coord.x) # stored as (lat,long) - thats why its y,x # TODO DEBUGGING!! DEN OVENFOR SKAL BRUGE I STEDET
 
-            # TODO FOR DEBUGGING:
-            global debug_counter, debug_line, debug_point
-            debug_counter += 1
-            if debug_counter == 20:
-                print(f"yupper: {direction_line_length+extend_amount} - {extended_direction_line.length}")
-                debug_line = extended_direction_line # TODO remove
-                debug_point = coord # TODO remove
-            # FOR DEBUGGING END
+
 
 
             # TODO Problem. hvis vi snapper til grid res, hvis den den ene vej være for lidt punkter til at dække hele vejen over. og den anden vej være for mange..
@@ -232,7 +308,7 @@ def align_coords_with_centroid_angle(polygon: Polygon, home_gps, x_axis_coords, 
     # print(f"x_coords_aligned: {x_coords_aligned}")
     # return
 
-    return prealigned_to_aligned_coords_dict, centroid, centroid_line, long_centroid_line # (centroid and long_centroid_line can be used for plotting)
+    return prealigned_to_aligned_coords_dict, centroid, centroid_line, centroid_line_long # (centroid and long_centroid_line can be used for plotting)
 
 
 

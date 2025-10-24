@@ -35,7 +35,10 @@ def _is_cell_valid(grid, vis, x, y):
 # Function to perform the BFS traversal
 # grid: 2D numpy array where 1 = flyable, 0 = no-fly zone
 # start_y, start_x: starting coordinates for the BFS (lat, lon)
-def breadth_first_traversal(grid, start_y, start_x, allow_diagonal = False):
+def breadth_first_traversal(grid, start_cell, allow_diagonal = False):
+
+    start_y = start_cell[0]
+    start_x = start_cell[1]
 
     # Error check
     if (grid[start_y][start_x] == 0):
@@ -83,8 +86,8 @@ def breadth_first_traversal(grid, start_y, start_x, allow_diagonal = False):
 
 
 # Order that make sure next cell is a neighbor of the current cell (breadth first traversal does not guarantee this)
-def single_drone_traversal_order_bft(grid, start_y, start_x, allow_diagonal_in_bft=False, allow_diagonal_in_path=False):
-    bft = breadth_first_traversal(grid, start_y, start_x, allow_diagonal=allow_diagonal_in_bft)
+def single_drone_traversal_order_bft(grid, start_cell, allow_diagonal_in_bft=False, allow_diagonal_in_path=False):
+    bft = breadth_first_traversal(grid, start_cell, allow_diagonal=allow_diagonal_in_bft)
 
     result = []
     visited = [False for _ in range(len(bft))]
@@ -165,6 +168,8 @@ def _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, ce
     y = current_cell[0]
     result = []
 
+    # TODO LIGE NU ER DET KUN 8 WAY. AKA allow_diagonal_in_path GØR INGENTING... IMPLIMENTER 4 WAY OGSÅ?
+
     for i in range(8):
         adjx = x + dRow_8way[i]
         adjy = y + dCol_8way[i]
@@ -180,6 +185,8 @@ def _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, ce
             angle_diff_rad = min(angle_diff_rad, 2*math.pi - angle_diff_rad) # ensure in [0, pi]. This step ensures we are measuring the shorter way around the circle (e.g. 350° → 10°).
             if directional == "bidirectional":
                 angle_diff_rad = min(angle_diff_rad, math.pi - angle_diff_rad)   # ensure in [0, pi/2]. Folds any obtuse angle (>90°) back into an acute one, giving [0, pi/2].
+
+            #print(f"Neighbor {i}, angle diff to centroid: {angle_diff_rad}")
 
             result.append((neighbor_cell, angle_diff_rad))
 
@@ -212,7 +219,7 @@ def _find_next_cell_centroid(grid, current_cell, visited_cells, centroid_line_an
 # "Unidirectional" angle difference (0 to pi). "Bidirectional" would be (0 to pi/2). 
 #  For this hybrid approach, we want "Bidirectional" (the issues of bidirectional is what we are trying to fix by taking into account current direction as well)
 def _find_next_cell_hybrid(grid, current_cell, visited_cells, centroid_line_angle: float, current_direction_angle: float, 
-                           weight_centroid = 1.0, directional = "bidirectional", allow_diagonal_in_path = True):
+                           weight_centroid = 0.5, directional = "bidirectional", allow_diagonal_in_path = True):
 
     centroid_angle_diff_of_neighbors = _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, centroid_line_angle, directional, allow_diagonal_in_path)
 
@@ -248,14 +255,25 @@ def _find_next_cell_hybrid(grid, current_cell, visited_cells, centroid_line_angl
         return _find_closest_cell(grid, current_cell, visited_cells) # closest unvisited cell. returns None if no more valid cells are left
 
 # Alternative ways to do traversal order path planning
-def single_drone_traversal_order_alt(grid, start_y, start_x, polygon: Polygon, method, allow_diagonal_in_path = True): 
+def single_drone_traversal_order_alt(grid, start_cell, start_gps, polygon: Polygon, method, allow_diagonal_in_path = True): 
+
+    # LAV SAMME START CELL FIX I BFT FUNKTIONEN
+
+    start_cell_y = start_cell[0]
+    start_cell_x = start_cell[1]
+    start_coord_y = start_gps[0]
+    start_coord_x = start_gps[1]
 
     result = []
-    result.append((start_y, start_x))
+    result.append((start_cell_y, start_cell_x))
 
     # If "centroid" or "hybrid" method is chosen, we need the "centroid line" angle
     centroid = polygon.centroid  # Point(lon, lat)
-    centroid_line_angle = math.atan2(abs(centroid.y - start_y), abs(centroid.x - start_x))  # angle in radians
+
+    # Calculate the centroid line angle (remember, centroid is in coordinates, so we need start_gps)
+    centroid_line_angle = math.atan2(centroid.y - start_coord_y, centroid.x - start_coord_x)  # angle in radians
+
+    print(f"Centroid line angle: {centroid_line_angle}")
 
     # For "hybrid" method, we also need the current direction angle
     current_direction_angle = 0.0  # initial direction angle (radians). Could be set to any value, as it will be updated after the first move.

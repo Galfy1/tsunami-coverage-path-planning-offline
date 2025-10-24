@@ -141,11 +141,7 @@ def single_drone_traversal_order_bft(grid, start_cell, allow_diagonal_in_bft=Fal
 
 
 # TODO: !!! ALTERNATIV STRATEGI: BARE VÆLG DEN FØRSTE NEIBOR DER ER FRI. (start med venstre, så op, så højre, så ned, eller sådan noget). så holder dronen altid til venstre
-# TODO: ALTERNATIV STATEGRI: DRONEN VÆLGER DEN NABO DER HAR EN VINKEL TÆTTEST PÅ DENS NUVÆRENDE RETNING (så vi prøver at undgå skarpe sving)
-    # MÅSKE SKIP DEN HER... VED IKKE HVOR GOD DEN ER. SE DEN NEDENFOR I STEDET
-# TODO: !!! ALTERNATIV: EN HYBRID AF CENTROID OG NUVÆRENDE RETNING. DEN UDREGNER HER EN DESIRED RETNING BASERET PÅ CENTROID OG NUVÆRENDE RETNING. OG VÆGTER DEM BEGGE TO LIDT. F.EKS. 70% CENTROID, 30% NUVÆRENDE RETNING.
-    # WUPS, SÅ SKAL DET VÆRE BIDIRECITONEL CENTROID. DEN VI HAR NU ER UNIDIRECTIONEL
-    # NÆVN I RAPPORTEN PROBLEMER MED BIDIRECTIONEL CENTOID (konstant retningsskift), OG AT DENNE HYBRID METODE PRØVER AT FIKSE DET PROBLEM
+
 
 def _find_closest_cell(grid, current_cell, visited_cells):
     min_dist = float("inf")

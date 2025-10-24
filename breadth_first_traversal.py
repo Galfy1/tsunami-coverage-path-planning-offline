@@ -213,7 +213,7 @@ def _find_next_cell_centroid(grid, current_cell, visited_cells, centroid_line_an
         return neighbor_with_smallest_angle_diff[0] 
     else:
         # No unvisited neighbor is found. Find the closest unvisited cell
-        print("No unvisited neighbor found. Finding closest unvisited cell...")
+        #print("No unvisited neighbor found. Finding closest unvisited cell...")
         return _find_closest_cell(grid, current_cell, visited_cells) # closest unvisited cell. returns None if no more valid cells are left
 
 # "Unidirectional" angle difference (0 to pi). "Bidirectional" would be (0 to pi/2). 

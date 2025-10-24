@@ -12,8 +12,14 @@ import csv
 
 DRONE_START = (37.4122067992952, -121.998909115791) # (lat, lon) aka (y,x)
 CAMERA_COVERAGE_LEN = 10  # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
+
+# BFT Settings (only is of couse only relevant if BFT method is used on the drone):
 ALLOW_DIAGONAL_IN_BFT = False 
-ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING = True # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
+
+# Offline Plotting Settings (this is just for single drone traversal plotting):
+PLOTTING_METHOD_SELECTION = "centroid"  # Options: "BFT","centroid", "hybrid". All data relevant for all modes will be saved in the pickle file anyway - so this setting is just for plotting
+PLOTTING_ONLY_PLOT_POINTS = False # If true, only the waypoints are plotted. If false, the full path planning lines are also plotted
+PLOTTING_ALLOW_DIAGONAL_IN_PATH_PLANNING = True # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
 
 
 # TODO skriv hvad de forskellig modes er.. og at centroud (pure centroid) er unidirection. og hvordan hybrid er andereldes (er bi directional også)
@@ -137,7 +143,6 @@ def main(args=None) -> None:
             # Check if drone start is inside this cell
             if y_cell_min <= DRONE_START[0] < y_cell_max and x_cell_min <= DRONE_START[1] < x_cell_max:
                 home_cell = (i, j)
-                print("DRONE START GRID COORDS:", home_cell)
                 break
         if home_cell:
             break
@@ -146,18 +151,22 @@ def main(args=None) -> None:
         raise ValueError("Drone start position is outside the grid")
     if fly_nofly_grid[home_cell[0], home_cell[1]] == 0:
         raise ValueError("Drone start position is in a no-fly zone")
-    print("DRONE START GRID COORDS:", home_cell)
 
     print(f"home_cell: {home_cell}, grid value at home_cell: {fly_nofly_grid[home_cell[0], home_cell[1]]}")
 
     bf_traversal_cells = breadth_first_traversal(fly_nofly_grid, home_cell, allow_diagonal=ALLOW_DIAGONAL_IN_BFT)
     bf_traversal_gps = convert_cells_to_gps(bf_traversal_cells, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y)
 
+    # Prepare data to save
+    centroid = polygon.centroid
+    centroid_coords = (centroid.y, centroid.x)  # (lat, lon) (we dont want drone to be dependent on shapely Point objects)
     data_to_save = {
         'home_cell': home_cell,
         'home_gps': DRONE_START,
         'bf_traversal_cells': bf_traversal_cells,
         'bf_traversal_gps': bf_traversal_gps,
+        'fly_nofly_grid': fly_nofly_grid,
+        'centroid': centroid_coords,
     }
     # Save traversal order to a file using pickle
     with open('bf_traversal.pkl', 'wb') as fp:
@@ -174,12 +183,12 @@ def main(args=None) -> None:
     ################################ PLOTTING ################################
 
 
-    # PLOTTING SINGLE DRONE PATH ON A MAP (or just BFT points if you want)
-    PLOT_TYPE = 'bft_and_path' # "just_bft" or "bft_and_path"
-
 
     #traversal_order_cells = single_drone_traversal_order(fly_nofly_grid, home_cell[0], home_cell[1], allow_diagonal_in_bft=ALLOW_DIAGONAL_IN_BFT, allow_diagonal_in_path=ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING) # start somewhere in the middle TODO: make sure start point is valid (inside polygon and not in no-fly zone)
-    traversal_order_cells = single_drone_traversal_order_alt(fly_nofly_grid, home_cell, DRONE_START, polygon, method="hybrid", allow_diagonal_in_path=ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING)
+    if (PLOTTING_METHOD_SELECTION == "BFT"):
+        traversal_order_cells = single_drone_traversal_order_bft(fly_nofly_grid, home_cell, allow_diagonal_in_bft=ALLOW_DIAGONAL_IN_BFT, allow_diagonal_in_path=PLOTTING_ALLOW_DIAGONAL_IN_PATH_PLANNING)
+    else:
+        traversal_order_cells = single_drone_traversal_order_alt(fly_nofly_grid, home_cell, DRONE_START, polygon, method=PLOTTING_METHOD_SELECTION, allow_diagonal_in_path=PLOTTING_ALLOW_DIAGONAL_IN_PATH_PLANNING)
     traversal_order_gps = convert_cells_to_gps(traversal_order_cells, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y)
     #print("TRAVERSAL ORDER GPS COORDS:", traversal_order_gps)
 
@@ -203,13 +212,16 @@ def main(args=None) -> None:
     #amount_of_colored_points = 60
     cmap = cm.get_cmap('inferno', amount_of_colored_points)  # You can change colormap to what you want
 
-    # Plot BF traversal points
+    # Plot BF traversal points (NOTE: For convenience we plot the BFT points for plotting, even if PLOTTING_METHOD_SELECTION is not "BFT")
     for i, (lat, lon) in enumerate(bf_traversal_gps):
         # (Add points to the map with colors based on their order)
-        color = colors.rgb2hex(cmap(i)[:3]) # Convert RGBA to hex
+        if PLOTTING_METHOD_SELECTION == "BFT":
+            color = colors.rgb2hex(cmap(i)[:3]) # Convert RGBA to hex
+        else:
+            color = 'black' # all black if not BFT plotting (the colors are a BFT specific thing) 
         folium.CircleMarker(location=[lat, lon], radius=5, color=color, fill=True, fill_opacity=0.7).add_to(m)
 
-    if (not (PLOT_TYPE == 'just_bft')):
+    if (not PLOTTING_ONLY_PLOT_POINTS):
         # Plot traversal order path
         folium.PolyLine(locations=traversal_order_gps, color="blue", weight=2.0, opacity=1, ).add_to(m)
         pass

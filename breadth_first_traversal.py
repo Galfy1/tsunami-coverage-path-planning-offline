@@ -5,9 +5,6 @@ from shapely.geometry import Point, LineString, Polygon
 
 # BASED ON https://www.geeksforgeeks.org/dsa/breadth-first-traversal-bfs-on-a-2d-array/
 
-# TODO DER ER ET FUNDEMENTALT ISSUE HER... BFS ER POITNSE IKKE NØDVENDLIGVIS VED SIDEN AF HINANDEN
-    # I DERES PAPER: er hver point ved siden af hidnanden fordi dronen vælger de points der er tættest på
-
 # Direction vectors
 dRow_4way = [ -1, 0, 1, 0]
 dCol_4way = [ 0, 1, 0, -1]
@@ -15,9 +12,6 @@ dCol_4way = [ 0, 1, 0, -1]
 dRow_8way = [ -1, -1, 0, 1, 1, 1, 0, -1]
 dCol_8way = [ 0, 1, 1, 1, 0, -1, -1, -1]
 
-
-# TODO PRØV AT LAV DIAGONASL I DET HER. så skal vi måske også passe metadata til tsunami om om det er med eller uden diagnonal (så kan den mirror valget for sin nabo finding halløj)
-# Man kan også ændre på rækkefælgen af dRow og dCol så den f.eks. altid prøver at gå højre først, så ned, så venstre, så op (eller sådan noget)
 
 # Function to check if a cell
 # is be visited or not
@@ -67,18 +61,7 @@ def breadth_first_traversal(grid, start_y, start_x, allow_diagonal = False):
         cell = q.popleft()
         x = cell[1]
         y = cell[0]
-        #print(grid[x][y], end = " ")
         result.append((y, x))
-
-        #q.pop()
-
-        # # Go to the adjacent cells (not diagonal)
-        # for i in range(4):
-        #     adjx = x + dRow[i]
-        #     adjy = y + dCol[i]
-        #     if (is_valid(grid, vis, adjx, adjy)):
-        #         q.append((adjx, adjy))
-        #         vis[adjx][adjy] = True
 
         # If diagonal movement is allowed, check the diagonal cells
         if allow_diagonal == False:
@@ -100,52 +83,7 @@ def breadth_first_traversal(grid, start_y, start_x, allow_diagonal = False):
 
 
 # Order that make sure next cell is a neighbor of the current cell (breadth first traversal does not guarantee this)
-# def traversal_order(grid, start_row, start_col, allow_diagonal = False):
-#     bft = breadth_first_traversal(grid, start_row, start_col)
-
-#     result = []
-#     visited = [False for _ in range(len(bft))]
-
-#     result.append(bft[0])
-#     visited[0] = True
-#     current_cell = bft[0]
-
-#     while (len(result) < len(bft)): # while result list is not full
-#         # we now want to find the neighbor cell of current_cell that is "closest" in the bft list and has not yet been visited
-#         #print("Current cell:", current_cell)
-#         for i in range(len(bft)):   # iterate through all cells in bft from "closest" to "farthest"
-#             if (visited[i] == False):
-#                 cell = bft[i]
-#                 # Check if cell is neighbor to current_cell
-#                 dx = abs(cell[0] - current_cell[0])
-#                 dy = abs(cell[1] - current_cell[1])
-#                 if (allow_diagonal and max(dx, dy) == 1) or (not allow_diagonal and dx + dy == 1):
-#                     # neighbor found!
-#                     result.append(cell)
-#                     visited[i] = True
-#                     current_cell = cell
-#                     break
-#             if (i == len(bft) - 1):
-#                 # no neighbor found... Instead, we add the closest unvisited cell to current_cell
-#                 closest_cell = (float('inf'), float('inf'))
-#                 for j in range(len(bft)):
-#                     if (visited[j] == False):
-#                         # Check if this cell is closer than the current closest
-#                         if (abs(bft[j][0] - current_cell[0]) + abs(bft[j][1] - current_cell[1]) < abs(closest_cell[0] - current_cell[0]) + abs(closest_cell[1] - current_cell[1])):
-#                             closest_cell = bft[j]
-#                 # Add the closest unvisited cell to the result
-#                 # if (closest_cell != (float('inf'), float('inf'))):
-#                 #     result.append(bft[closest_cell_index])
-#                 #     visited[closest_cell_index] = True
-#                 #     current_cell = bft[closest_cell_index]
-#                 # else:
-#                 #     raise ValueError("No unvisited cells left, but result list is not full. This should never happen.")
-                
-#     return result
-
-
-# Order that make sure next cell is a neighbor of the current cell (breadth first traversal does not guarantee this)
-def single_drone_traversal_order(grid, start_y, start_x, allow_diagonal_in_bft=False, allow_diagonal_in_path=False):
+def single_drone_traversal_order_bft(grid, start_y, start_x, allow_diagonal_in_bft=False, allow_diagonal_in_path=False):
     bft = breadth_first_traversal(grid, start_y, start_x, allow_diagonal=allow_diagonal_in_bft)
 
     result = []
@@ -201,25 +139,27 @@ def single_drone_traversal_order(grid, start_y, start_x, allow_diagonal_in_bft=F
 
 
 
+def _find_closest_cell(grid, current_cell, visited_cells):
+    min_dist = float("inf")
+    closest_cell = None
+    for y in range(grid.shape[0]):
+        for x in range(grid.shape[1]):
+            if(is_valid(grid, visited_cells, x, y)):
+                dx = abs(x - current_cell[1])
+                dy = abs(y - current_cell[0])
+                dist = math.sqrt(dx**2 + dy**2)  # Euclidean distance
+                if dist < min_dist:
+                    min_dist = dist
+                    closest_cell = (y, x)
+    return closest_cell # closest unvisited cell. returns None if no more valid cells are left
 
 
-
-def find_next_cell_centroid(grid, current_cell, visited_cells, centroid_line_angle: float, allow_diagonal_in_path = True, directional = "unidirectional"):
+def _find_next_cell_centroid(grid, current_cell, visited_cells, centroid_line_angle: float, allow_diagonal_in_path = True, directional = "unidirectional"):
 
     neighbor_with_smallest_angle_diff = None  # angle diff compared to centroid line direction
 
-    #waypoint_count = np.sum(grid == 1) # amount of waypoints to be visited
-
     x = current_cell[1]
     y = current_cell[0]
-
-
-    neighbor_found = False
-
-    # HUSK DET YDRE LOOP SKAL TAGE HØJDE FOR AT ANDRE KAN ÆNDRE VISISTED ARRAAYED (så vi nemmere kan implimerentere det i simmen)
-    # KIG LIGE PÅ HVORDAN VI HAR GJORT DET HER I SIMMEN.
-    # ligesom i find_next_cell
-
 
     # TODO: !!! ALTERNATIV STRATEGI: BARE VÆLG DEN FØRSTE NEIBOR DER ER FRI. (start med venstre, så op, så højre, så ned, eller sådan noget). så holder dronen altid til venstre
     # TODO: ALTERNATIV STATEGRI: DRONEN VÆLGER DEN NABO DER HAR EN VINKEL TÆTTEST PÅ DENS NUVÆRENDE RETNING (så vi prøver at undgå skarpe sving)
@@ -264,38 +204,28 @@ def find_next_cell_centroid(grid, current_cell, visited_cells, centroid_line_ang
     else:
         # No unvisited neighbor is found. Find the closest unvisited cell
         print("No unvisited neighbor found. Finding closest unvisited cell...")
-        min_dist = float("inf")
-        closest_cell = None
-        for y in range(grid.shape[0]):
-            for x in range(grid.shape[1]):
-                if(is_valid(grid, visited_cells, x, y)):
-                    dx = abs(x - current_cell[1])
-                    dy = abs(y - current_cell[0])
-                    dist = math.sqrt(dx**2 + dy**2)  # Euclidean distance
-                    if dist < min_dist:
-                        min_dist = dist
-                        closest_cell = (y, x)
-        return closest_cell # closest unvisited cell. returns None if no more valid cells are left
-
-    
+        return _find_closest_cell(grid, current_cell, visited_cells) # closest unvisited cell. returns None if no more valid cells are left
 
 
-def single_drone_traversal_order_centroid(grid, start_y, start_x, polygon: Polygon, allow_diagonal_in_path = True):
-
-    centroid = polygon.centroid  # Point(lon, lat)
-    #centroid_line = LineString([Point(start_x, start_y), centroid]) # Point(lon, lat)
+# Alternative ways to do traversal order path planning
+def single_drone_traversal_order_alt(grid, start_y, start_x, polygon: Polygon, allow_diagonal_in_path = True, method = "centroid"): 
 
     result = []
     result.append((start_y, start_x))
 
+    # If centroid method is chosen, we need the "centroid line" angle
+    centroid = polygon.centroid  # Point(lon, lat)
     centroid_line_angle = math.atan2(abs(centroid.y - start_y), abs(centroid.x - start_x))  # angle in radians
-    print(f"centroid_line_angle: {centroid_line_angle} radians")
     
     # Declare the visited array
     vis = np.full((grid.shape[0], grid.shape[1]), False)
 
     while(True):
-        next_cell = find_next_cell_centroid(grid, result[-1], vis, centroid_line_angle, allow_diagonal_in_path)
+        if method == "centroid":
+            next_cell = _find_next_cell_centroid(grid, result[-1], vis, centroid_line_angle, allow_diagonal_in_path)
+        elif method == "ASD":
+            #next_cell = _find_next_cell_default(grid, result[-1], vis, allow_diagonal_in_path)
+
         if next_cell is None:
             break
 
@@ -304,36 +234,36 @@ def single_drone_traversal_order_centroid(grid, start_y, start_x, polygon: Polyg
 
     return result
 
-# Test Code
-if __name__ == '__main__':
+# # Test Code
+# if __name__ == '__main__':
   
-    # Given input matrix
-    grid = np.array([[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-                    [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
-                    [0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0],
-                    [0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0],
-                    [0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0],
-                    [0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
-                    [0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
-                    [0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
-                    [0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [0,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [0,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1],
-                    [0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1],
-                    [0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1],
-                    [0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1],
-                    [0,0,0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1]])
+#     # Given input matrix
+#     grid = np.array([[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+#                     [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
+#                     [0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0],
+#                     [0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0],
+#                     [0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0],
+#                     [0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
+#                     [0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
+#                     [0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
+#                     [0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#                     [0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#                     [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#                     [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#                     [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#                     [0,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#                     [0,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1],
+#                     [0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1],
+#                     [0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1],
+#                     [0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1],
+#                     [0,0,0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#                     [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#                     [0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#                     [0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+#                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1]])
 
 
 
-    # vis, False, sizeof vis)
+#     # vis, False, sizeof vis)
 
-    print(traversal_order(grid, 10, 10))
+#     print(traversal_order(grid, 10, 10))

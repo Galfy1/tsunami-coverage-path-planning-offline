@@ -15,7 +15,7 @@ dCol_8way = [ 0, 1, 1, 1, 0, -1, -1, -1]
 
 # Function to check if a cell
 # is be visited or not
-def is_valid(grid, vis, x, y):
+def _is_cell_valid(grid, vis, x, y):
   
     # If cell lies out of bounds
     if (x < 0 or y < 0 or x >= grid.shape[1] or y >= grid.shape[0]):
@@ -68,14 +68,14 @@ def breadth_first_traversal(grid, start_y, start_x, allow_diagonal = False):
             for i in range(4):
                 adjx = x + dRow_4way[i]
                 adjy = y + dCol_4way[i]
-                if (is_valid(grid, vis, adjx, adjy)):
+                if (_is_cell_valid(grid, vis, adjx, adjy)):
                     q.append((adjy, adjx ))
                     vis[adjy][adjx] = True
         else:
             for i in range(8):
                 adjx = x + dRow_8way[i]
                 adjy = y + dCol_8way[i]
-                if (is_valid(grid, vis, adjx, adjy)):
+                if (_is_cell_valid(grid, vis, adjx, adjy)):
                     q.append((adjx, adjx))
                     vis[adjy][adjx] = True
 
@@ -137,14 +137,19 @@ def single_drone_traversal_order_bft(grid, start_y, start_x, allow_diagonal_in_b
     return result
 
 
-
+# TODO: !!! ALTERNATIV STRATEGI: BARE VÆLG DEN FØRSTE NEIBOR DER ER FRI. (start med venstre, så op, så højre, så ned, eller sådan noget). så holder dronen altid til venstre
+# TODO: ALTERNATIV STATEGRI: DRONEN VÆLGER DEN NABO DER HAR EN VINKEL TÆTTEST PÅ DENS NUVÆRENDE RETNING (så vi prøver at undgå skarpe sving)
+    # MÅSKE SKIP DEN HER... VED IKKE HVOR GOD DEN ER. SE DEN NEDENFOR I STEDET
+# TODO: !!! ALTERNATIV: EN HYBRID AF CENTROID OG NUVÆRENDE RETNING. DEN UDREGNER HER EN DESIRED RETNING BASERET PÅ CENTROID OG NUVÆRENDE RETNING. OG VÆGTER DEM BEGGE TO LIDT. F.EKS. 70% CENTROID, 30% NUVÆRENDE RETNING.
+    # WUPS, SÅ SKAL DET VÆRE BIDIRECITONEL CENTROID. DEN VI HAR NU ER UNIDIRECTIONEL
+    # NÆVN I RAPPORTEN PROBLEMER MED BIDIRECTIONEL CENTOID (konstant retningsskift), OG AT DENNE HYBRID METODE PRØVER AT FIKSE DET PROBLEM
 
 def _find_closest_cell(grid, current_cell, visited_cells):
     min_dist = float("inf")
     closest_cell = None
     for y in range(grid.shape[0]):
         for x in range(grid.shape[1]):
-            if(is_valid(grid, visited_cells, x, y)):
+            if(_is_cell_valid(grid, visited_cells, x, y)):
                 dx = abs(x - current_cell[1])
                 dy = abs(y - current_cell[0])
                 dist = math.sqrt(dx**2 + dy**2)  # Euclidean distance
@@ -153,78 +158,125 @@ def _find_closest_cell(grid, current_cell, visited_cells):
                     closest_cell = (y, x)
     return closest_cell # closest unvisited cell. returns None if no more valid cells are left
 
-
-def _find_next_cell_centroid(grid, current_cell, visited_cells, centroid_line_angle: float, allow_diagonal_in_path = True, directional = "unidirectional"):
-
-    neighbor_with_smallest_angle_diff = None  # angle diff compared to centroid line direction
-
+def _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, centroid_line_angle: float, 
+                                                 directional, allow_diagonal_in_path = True):
+    #neighbor_with_smallest_angle_diff = None  # angle diff compared to centroid line direction
     x = current_cell[1]
     y = current_cell[0]
+    result = []
 
-    # TODO: !!! ALTERNATIV STRATEGI: BARE VÆLG DEN FØRSTE NEIBOR DER ER FRI. (start med venstre, så op, så højre, så ned, eller sådan noget). så holder dronen altid til venstre
-    # TODO: ALTERNATIV STATEGRI: DRONEN VÆLGER DEN NABO DER HAR EN VINKEL TÆTTEST PÅ DENS NUVÆRENDE RETNING (så vi prøver at undgå skarpe sving)
-        # MÅSKE SKIP DEN HER... VED IKKE HVOR GOD DEN ER. SE DEN NEDENFOR I STEDET
-    # TODO: !!! ALTERNATIV: EN HYBRID AF CENTROID OG NUVÆRENDE RETNING. DEN UDREGNER HER EN DESIRED RETNING BASERET PÅ CENTROID OG NUVÆRENDE RETNING. OG VÆGTER DEM BEGGE TO LIDT. F.EKS. 70% CENTROID, 30% NUVÆRENDE RETNING.
-        # WUPS, SÅ SKAL DET VÆRE BIDIRECITONEL CENTROID. DEN VI HAR NU ER UNIDIRECTIONEL
-        # NÆVN I RAPPORTEN PROBLEMER MED BIDIRECTIONEL CENTOID (konstant retningsskift), OG AT DENNE HYBRID METODE PRØVER AT FIKSE DET PROBLEM
+    # TODO lige nu er det kun 8-way.
 
-    # If diagonal movement is allowed, check the diagonal cells
-    # if allow_diagonal_in_path == False: # not sure how much sense it makes to not allow diagonal here...
-    #     for i in range(4):
-    #         adjx = x + dRow_4way[i]
-    #         adjy = y + dCol_4way[i]
-    #         if (is_valid(grid, vis, adjx, adjy)):
-    #             current_cell = (adjx, adjy)
-    #             result.append((adjx, adjy))
-    #             vis[adjx][adjy] = True
-    # else:
     for i in range(8):
         adjx = x + dRow_8way[i]
         adjy = y + dCol_8way[i]
-        if (is_valid(grid, visited_cells, adjx, adjy)):
+        if (_is_cell_valid(grid, visited_cells, adjx, adjy)):
             neighbor_cell = (adjy, adjx)
 
             # Calculate angle from current_cell to neighbor_cell
             angle_to_neighbor = math.atan2(neighbor_cell[0] - current_cell[0], neighbor_cell[1] - current_cell[1])  # angle in radians
 
             # Calculate angle difference to centroid line angle
-            # "Unidirectional" angle difference (0 to po). "Bidirectional" would be (0 to pi/2), but does not seem to work very well (constantly shifting direction) 
+            
             angle_diff_rad = abs(angle_to_neighbor - centroid_line_angle)    # raw difference, but could be anywhere from 0 to 2π.
             angle_diff_rad = min(angle_diff_rad, 2*math.pi - angle_diff_rad) # ensure in [0, pi]. This step ensures we are measuring the shorter way around the circle (e.g. 350° → 10°).
             if directional == "bidirectional":
                 angle_diff_rad = min(angle_diff_rad, math.pi - angle_diff_rad)   # ensure in [0, pi/2]. Folds any obtuse angle (>90°) back into an acute one, giving [0, pi/2].
 
-            # Check if this neighbor has the smallest angle difference so far
-            if (neighbor_with_smallest_angle_diff is None) or (angle_diff_rad < neighbor_with_smallest_angle_diff[1]):
-                neighbor_with_smallest_angle_diff = (neighbor_cell, angle_diff_rad)
+            result.append((neighbor_cell, angle_diff_rad))
 
-    if neighbor_with_smallest_angle_diff != None:
-        # neighbor found!
-        return neighbor_with_smallest_angle_diff[0] # (neighbor_cell, angle_diff_rad)
+    return result  # list of (neighbor_cell, angle_diff_rad)
+
+    #         # Check if this neighbor has the smallest angle difference so far
+    #         if (neighbor_with_smallest_angle_diff is None) or (angle_diff_rad < neighbor_with_smallest_angle_diff[1]):
+    #             neighbor_with_smallest_angle_diff = (neighbor_cell, angle_diff_rad)
+
+    # return neighbor_with_smallest_angle_diff  # (neighbor_cell, angle_diff_rad) or None if no valid neighbor found
+
+
+# "Unidirectional" angle difference (0 to pi). "Bidirectional" would be (0 to pi/2). 
+# "Bidirectional" does not seem to work very well for the "pure centroid" method (constantly shifting direction)
+def _find_next_cell_centroid(grid, current_cell, visited_cells, centroid_line_angle: float, 
+                             directional = "unidirectional", allow_diagonal_in_path = True):
+
+    centroid_angle_diff_of_neighbors = _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, centroid_line_angle, directional, allow_diagonal_in_path)
+
+    if centroid_angle_diff_of_neighbors: # if list is not empty
+        # Find the neighbor with the smallest angle difference
+        # centroid_angle_diff_of_neighbors is a list of (neighbor_cell, angle_diff_rad)
+        neighbor_with_smallest_angle_diff = min(centroid_angle_diff_of_neighbors, key=lambda x: x[1])
+        return neighbor_with_smallest_angle_diff[0] 
     else:
         # No unvisited neighbor is found. Find the closest unvisited cell
         print("No unvisited neighbor found. Finding closest unvisited cell...")
         return _find_closest_cell(grid, current_cell, visited_cells) # closest unvisited cell. returns None if no more valid cells are left
 
+# "Unidirectional" angle difference (0 to pi). "Bidirectional" would be (0 to pi/2). 
+#  For this hybrid approach, we want "Bidirectional" (the issues of bidirectional is what we are trying to fix by taking into account current direction as well)
+def _find_next_cell_hybrid(grid, current_cell, visited_cells, centroid_line_angle: float, current_direction_angle: float, 
+                           weight_centroid = 1.0, directional = "bidirectional", allow_diagonal_in_path = True):
+
+    centroid_angle_diff_of_neighbors = _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, centroid_line_angle, directional, allow_diagonal_in_path)
+
+    if centroid_angle_diff_of_neighbors: # if list is not empty
+
+        # Find the neighbor with the smallest weighted angle difference
+        # centroid_angle_diff_of_neighbors is a list of (neighbor_cell, angle_diff_rad)
+        min_weighted_angle_diff = float("inf")
+        best_neighbor = None
+
+        # (here, angles are in radians)
+        for neighbor_cell, angle_diff_to_centroid in centroid_angle_diff_of_neighbors:
+            # Calculate angle from current_cell to neighbor_cell
+            angle_to_neighbor = math.atan2(neighbor_cell[0] - current_cell[0], neighbor_cell[1] - current_cell[1])  # angle in radians
+
+            # Calculate angle difference to current direction (we always want this to be unidirectional, i.e. [0, pi]. cus we want to penalize sharp turns)
+            angle_diff_to_current_dir = abs(angle_to_neighbor - current_direction_angle)
+            angle_diff_to_current_dir = min(angle_diff_to_current_dir, 2*math.pi - angle_diff_to_current_dir) # ensure in [0, pi]
+
+            # Calculate weighted angle difference
+            weighted_angle_diff = (weight_centroid * angle_diff_to_centroid) + ((1 - weight_centroid) * angle_diff_to_current_dir)
+
+            if weighted_angle_diff < min_weighted_angle_diff:
+                min_weighted_angle_diff = weighted_angle_diff
+                best_neighbor = neighbor_cell
+
+        return best_neighbor
+
+
+    else:
+        # No unvisited neighbor is found. Find the closest unvisited cell
+        print("No unvisited neighbor found. Finding closest unvisited cell...")
+        return _find_closest_cell(grid, current_cell, visited_cells) # closest unvisited cell. returns None if no more valid cells are left
 
 # Alternative ways to do traversal order path planning
-def single_drone_traversal_order_alt(grid, start_y, start_x, polygon: Polygon, allow_diagonal_in_path = True, method = "centroid"): 
+def single_drone_traversal_order_alt(grid, start_y, start_x, polygon: Polygon, method, allow_diagonal_in_path = True): 
 
     result = []
     result.append((start_y, start_x))
 
-    # If centroid method is chosen, we need the "centroid line" angle
+    # If "centroid" or "hybrid" method is chosen, we need the "centroid line" angle
     centroid = polygon.centroid  # Point(lon, lat)
     centroid_line_angle = math.atan2(abs(centroid.y - start_y), abs(centroid.x - start_x))  # angle in radians
+
+    # For "hybrid" method, we also need the current direction angle
+    current_direction_angle = 0.0  # initial direction angle (radians). Could be set to any value, as it will be updated after the first move.
     
     # Declare the visited array
     vis = np.full((grid.shape[0], grid.shape[1]), False)
 
     while(True):
+        current_cell = result[-1]
         if method == "centroid":
-            next_cell = _find_next_cell_centroid(grid, result[-1], vis, centroid_line_angle, allow_diagonal_in_path)
-        elif method == "ASD":
-            #next_cell = _find_next_cell_default(grid, result[-1], vis, allow_diagonal_in_path)
+            next_cell = _find_next_cell_centroid(grid, current_cell, vis, centroid_line_angle, allow_diagonal_in_path)
+        elif method == "hybrid":
+            # (use the default weight)
+            next_cell = _find_next_cell_hybrid(grid, current_cell, vis, centroid_line_angle, current_direction_angle, allow_diagonal_in_path=allow_diagonal_in_path)
+            # Update current direction angle
+            if next_cell is not None:
+                current_direction_angle = math.atan2(next_cell[0] - current_cell[0], next_cell[1] - current_cell[1]) 
+        else:
+            raise ValueError("Invalid method specified.")
 
         if next_cell is None:
             break

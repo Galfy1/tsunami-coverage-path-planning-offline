@@ -159,13 +159,11 @@ def _find_closest_cell(grid, current_cell, visited_cells):
     return closest_cell # closest unvisited cell. returns None if no more valid cells are left
 
 def _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, centroid_line_angle: float, 
-                                                 directional, allow_diagonal_in_path = True):
+                                                 directional: str, allow_diagonal_in_path = True):
     #neighbor_with_smallest_angle_diff = None  # angle diff compared to centroid line direction
     x = current_cell[1]
     y = current_cell[0]
     result = []
-
-    # TODO lige nu er det kun 8-way.
 
     for i in range(8):
         adjx = x + dRow_8way[i]
@@ -233,7 +231,7 @@ def _find_next_cell_hybrid(grid, current_cell, visited_cells, centroid_line_angl
             # Calculate angle difference to current direction (we always want this to be unidirectional, i.e. [0, pi]. cus we want to penalize sharp turns)
             angle_diff_to_current_dir = abs(angle_to_neighbor - current_direction_angle)
             angle_diff_to_current_dir = min(angle_diff_to_current_dir, 2*math.pi - angle_diff_to_current_dir) # ensure in [0, pi]
-
+        
             # Calculate weighted angle difference
             weighted_angle_diff = (weight_centroid * angle_diff_to_centroid) + ((1 - weight_centroid) * angle_diff_to_current_dir)
 
@@ -268,7 +266,7 @@ def single_drone_traversal_order_alt(grid, start_y, start_x, polygon: Polygon, m
     while(True):
         current_cell = result[-1]
         if method == "centroid":
-            next_cell = _find_next_cell_centroid(grid, current_cell, vis, centroid_line_angle, allow_diagonal_in_path)
+            next_cell = _find_next_cell_centroid(grid, current_cell, vis, centroid_line_angle, allow_diagonal_in_path=allow_diagonal_in_path)
         elif method == "hybrid":
             # (use the default weight)
             next_cell = _find_next_cell_hybrid(grid, current_cell, vis, centroid_line_angle, current_direction_angle, allow_diagonal_in_path=allow_diagonal_in_path)

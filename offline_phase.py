@@ -16,6 +16,8 @@ ALLOW_DIAGONAL_IN_BFT = False
 ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING = True # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
 
 
+# TODO skriv hvad de forskellig modes er.. og at centroud (pure centroid) er unidirection. og hvordan hybrid er andereldes (er bi directional også)
+
 # NOTE: We have tried to keep all coords, cells, grids, etc. (y,x) aka (lat, lon) - besides shapely Point, those are (x,y)
 
 
@@ -177,7 +179,7 @@ def main(args=None) -> None:
 
 
     #traversal_order_cells = single_drone_traversal_order(fly_nofly_grid, home_cell[0], home_cell[1], allow_diagonal_in_bft=ALLOW_DIAGONAL_IN_BFT, allow_diagonal_in_path=ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING) # start somewhere in the middle TODO: make sure start point is valid (inside polygon and not in no-fly zone)
-    traversal_order_cells = single_drone_traversal_order_alt(fly_nofly_grid, home_cell[0], home_cell[1], polygon, method="hybrid", allow_diagonal_in_path=ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING)
+    traversal_order_cells = single_drone_traversal_order_alt(fly_nofly_grid, home_cell[0], home_cell[1], polygon, method="centroid", allow_diagonal_in_path=ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING)
     traversal_order_gps = convert_cells_to_gps(traversal_order_cells, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y)
     #print("TRAVERSAL ORDER GPS COORDS:", traversal_order_gps)
 

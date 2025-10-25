@@ -38,6 +38,10 @@ PLOTTING_ALLOW_DIAGONAL_IN_PATH_PLANNING = True # THIS IS JUST FOR PLOTTING IN T
 # TODO HVORFOR ER CENTROID 90 grader lineup ?? (ikke centroid90)
     # var det noget jeg ikke fik pushet på desktoppen?? eller er det en bug jeg først har fundet nu?
         # den ser ellers ud til at være korrekt, den er bare drejet 90 grader i forhold til hvad jeg forventer !??!
+    # OGSÅ: der resultat nu jeg får i centroid90, hvorfor kan den gå perfekt baglæns? når den er sat til unidirectional?
+
+# TODO smid single drone path planning funktionerne i en anden fil end funktionen til at lave bft
+
 
 
 

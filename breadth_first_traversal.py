@@ -165,6 +165,7 @@ def _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, ce
     result = []
 
     # TODO LIGE NU ER DET KUN 8 WAY. AKA allow_diagonal_in_path GØR INGENTING... IMPLIMENTER 4 WAY OGSÅ?
+    # MÅSKE LAV EN WARNING MED AT DET IKKE GIVER SUPER MEGET MENEING MED allow_diagonal_in_path = false for centroid stuff?
 
     for i in range(8):
         adjx = x + dRow_8way[i]
@@ -198,9 +199,10 @@ def _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, ce
 # "Unidirectional" angle difference (0 to pi). "Bidirectional" would be (0 to pi/2). 
 # "Bidirectional" does not seem to work very well for the "pure centroid" method (constantly shifting direction)
 def _find_next_cell_centroid(grid, current_cell, visited_cells, centroid_line_angle: float, 
-                             directional = "unidirectional", allow_diagonal_in_path = True):
+                             directional = "unidirectional", allow_diagonal_in_path = True, angle_offset_rad = 0):
 
-    centroid_angle_diff_of_neighbors = _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, centroid_line_angle, directional, allow_diagonal_in_path)
+    centroid_angle_diff_of_neighbors = _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, centroid_line_angle+angle_offset_rad,
+                                                                              directional, allow_diagonal_in_path)
 
     if centroid_angle_diff_of_neighbors: # if list is not empty
         # Find the neighbor with the smallest angle difference
@@ -281,6 +283,8 @@ def single_drone_traversal_order_alt(grid, start_cell, start_gps, polygon: Polyg
         current_cell = result[-1]
         if method == "centroid":
             next_cell = _find_next_cell_centroid(grid, current_cell, vis, centroid_line_angle, allow_diagonal_in_path=allow_diagonal_in_path)
+        elif method == 'centroid90':
+            next_cell = _find_next_cell_centroid(grid, current_cell, vis, centroid_line_angle, allow_diagonal_in_path=allow_diagonal_in_path, angle_offset_rad=math.pi/2)
         elif method == "hybrid":
             # (use the default weight)
             next_cell = _find_next_cell_hybrid(grid, current_cell, vis, centroid_line_angle, current_direction_angle, allow_diagonal_in_path=allow_diagonal_in_path)

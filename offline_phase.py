@@ -17,7 +17,7 @@ CAMERA_COVERAGE_LEN = 10  # meters. coverage of the drone camera in the narrowes
 ALLOW_DIAGONAL_IN_BFT = False 
 
 # Offline Plotting Settings (this is just for single drone traversal plotting):
-PLOTTING_METHOD_SELECTION = "centroid"  # Options: "BFT","centroid", "hybrid". All data relevant for all modes will be saved in the pickle file anyway - so this setting is just for plotting
+PLOTTING_METHOD_SELECTION = "BFT"  # Options: "BFT","centroid", "centroid90", "hybrid". All data relevant for all modes will be saved in the pickle file anyway - so this setting is just for plotting
 PLOTTING_ONLY_PLOT_POINTS = False # If true, only the waypoints are plotted. If false, the full path planning lines are also plotted
 PLOTTING_ALLOW_DIAGONAL_IN_PATH_PLANNING = True # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
 
@@ -33,6 +33,11 @@ PLOTTING_ALLOW_DIAGONAL_IN_PATH_PLANNING = True # THIS IS JUST FOR PLOTTING IN T
         # Det gør den ved at beregne polygonens "summet kantvinkel - kalder jeg det". 
         # aka gå igennem alle edges i polygonen og kig på dens vinkel (relativt til x-aksen) og gang dem med længden (der er så den vægtet "kant vinklen"). Sum alle de vægtede kantvinkelr op
                 # hvis den summede kantvinkel er 45grader +-22,5grader, så aktiver centroid alignemnt. ellers slå det fra.
+
+
+# TODO HVORFOR ER CENTROID 90 grader lineup ?? (ikke centroid90)
+    # var det noget jeg ikke fik pushet på desktoppen?? eller er det en bug jeg først har fundet nu?
+        # den ser ellers ud til at være korrekt, den er bare drejet 90 grader i forhold til hvad jeg forventer !??!
 
 
 

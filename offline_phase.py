@@ -17,10 +17,25 @@ CAMERA_COVERAGE_LEN = 10  # meters. coverage of the drone camera in the narrowes
 ALLOW_DIAGONAL_IN_BFT = False 
 
 # Offline Plotting Settings (this is just for single drone traversal plotting):
-PLOTTING_METHOD_SELECTION = "BFT"  # Options: "BFT","centroid", "centroid90", "hybrid". All data relevant for all modes will be saved in the pickle file anyway - so this setting is just for plotting
+PLOTTING_METHOD_SELECTION = "centroid180"  # Options: "BFT","centroid", "centroid90", "hybrid". All data relevant for all modes will be saved in the pickle file anyway - so this setting is just for plotting
 PLOTTING_ONLY_PLOT_POINTS = False # If true, only the waypoints are plotted. If false, the full path planning lines are also plotted
 PLOTTING_ALLOW_DIAGONAL_IN_PATH_PLANNING = True # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
 
+
+# TODO følgene kan bruges til noter i rapporten. kan også bruges ti at sammenligne single og multi drone behavior.
+# SINGLE DRONE OBSERVATIONS:
+    # ALTERNTIVES THAT SEEM TO WORK BEST 
+        # "centroid180" (with the default directional setting of unidirectional): Will always "push" the drone back towards home (along the centoid line) (i.e. coveraging everything outwards from home)
+        # "centroid90" (with the default directional setting of unidirectional): Same as "centroid180", but the drone will coverage "sideways" from home (along a line perpendicular to the centroid line)
+        # "hybrid" (with the default directional setting of bidirectional)
+    # NOTES:
+        # Its a bit unintuative, but becouse directional is set to unidirectional:
+            # "centroid" and "centroid180" will make paths perpendicular to the centroid line 
+            # "centroid90" which makes paths parallel to the centroid line
+        # "centroid" does the same as "centroid180" (asuming unidirectional) - BUT, at the start, the drone is forced to fly directly to the other side of the polygon before starting the real "coverage pattern"
+
+
+# TODO Lav hybrid, så den også bruger centroid 90 og 180? nej vent.. for den er jo bidirectional..?? tænk over hvad vi gør med hybrid
 
 # TODO skriv hvad de forskellig modes er.. og at centroud (pure centroid) er unidirection. og hvordan hybrid er andereldes (er bi directional også)
 

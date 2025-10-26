@@ -183,7 +183,7 @@ def _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, ce
             if directional == "bidirectional":
                 angle_diff_rad = min(angle_diff_rad, math.pi - angle_diff_rad)   # ensure in [0, pi/2]. Folds any obtuse angle (>90°) back into an acute one, giving [0, pi/2].
 
-            #print(f"Neighbor {i}, angle diff to centroid: {angle_diff_rad}")
+            print(f"Neighbor {i}, angle diff to centroid: {angle_diff_rad}")
 
             result.append((neighbor_cell, angle_diff_rad))
 
@@ -196,18 +196,20 @@ def _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, ce
     # return neighbor_with_smallest_angle_diff  # (neighbor_cell, angle_diff_rad) or None if no valid neighbor found
 
 
-# "Unidirectional" angle difference (0 to pi). "Bidirectional" would be (0 to pi/2). 
-# "Bidirectional" does not seem to work very well for the "pure centroid" method (constantly shifting direction)
+# "unidirectional" angle difference (0 to pi). "bidirectional" would be (0 to pi/2). 
+# "bidirectional" does not seem to work very well for the "pure centroid" method (will sometimes do really sharp turns in direction)
 def _find_next_cell_centroid(grid, current_cell, visited_cells, centroid_line_angle: float, 
                              directional = "unidirectional", allow_diagonal_in_path = True, angle_offset_rad = 0):
 
     centroid_angle_diff_of_neighbors = _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, centroid_line_angle+angle_offset_rad,
                                                                               directional, allow_diagonal_in_path)
+    #print(f"centroid angle: {centroid_angle_diff_of_neighbors}")
 
     if centroid_angle_diff_of_neighbors: # if list is not empty
         # Find the neighbor with the smallest angle difference
         # centroid_angle_diff_of_neighbors is a list of (neighbor_cell, angle_diff_rad)
         neighbor_with_smallest_angle_diff = min(centroid_angle_diff_of_neighbors, key=lambda x: x[1])
+        #print(f"Next cell chosen with angle diff: {neighbor_with_smallest_angle_diff[1]}")
         return neighbor_with_smallest_angle_diff[0] 
     else:
         # No unvisited neighbor is found. Find the closest unvisited cell
@@ -255,8 +257,6 @@ def _find_next_cell_hybrid(grid, current_cell, visited_cells, centroid_line_angl
 # Alternative ways to do traversal order path planning
 def single_drone_traversal_order_alt(grid, start_cell, start_gps, polygon: Polygon, method, allow_diagonal_in_path = True): 
 
-    # LAV SAMME START CELL FIX I BFT FUNKTIONEN
-
     start_cell_y = start_cell[0]
     start_cell_x = start_cell[1]
     start_coord_y = start_gps[0]
@@ -285,6 +285,8 @@ def single_drone_traversal_order_alt(grid, start_cell, start_gps, polygon: Polyg
             next_cell = _find_next_cell_centroid(grid, current_cell, vis, centroid_line_angle, allow_diagonal_in_path=allow_diagonal_in_path)
         elif method == 'centroid90':
             next_cell = _find_next_cell_centroid(grid, current_cell, vis, centroid_line_angle, allow_diagonal_in_path=allow_diagonal_in_path, angle_offset_rad=math.pi/2)
+        elif method == 'centroid180':
+            next_cell = _find_next_cell_centroid(grid, current_cell, vis, centroid_line_angle, allow_diagonal_in_path=allow_diagonal_in_path, angle_offset_rad=math.pi)
         elif method == "hybrid":
             # (use the default weight)
             next_cell = _find_next_cell_hybrid(grid, current_cell, vis, centroid_line_angle, current_direction_angle, allow_diagonal_in_path=allow_diagonal_in_path)

@@ -183,7 +183,7 @@ def _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, ce
             if directional == "bidirectional":
                 angle_diff_rad = min(angle_diff_rad, math.pi - angle_diff_rad)   # ensure in [0, pi/2]. Folds any obtuse angle (>90°) back into an acute one, giving [0, pi/2].
 
-            print(f"Neighbor {i}, angle diff to centroid: {angle_diff_rad}")
+            #print(f"Neighbor {i}, angle diff to centroid: {angle_diff_rad}")
 
             result.append((neighbor_cell, angle_diff_rad))
 
@@ -219,9 +219,9 @@ def _find_next_cell_centroid(grid, current_cell, visited_cells, centroid_line_an
 # "Unidirectional" angle difference (0 to pi). "Bidirectional" would be (0 to pi/2). 
 #  For this hybrid approach, we want "Bidirectional" (the issues of bidirectional is what we are trying to fix by taking into account current direction as well)
 def _find_next_cell_hybrid(grid, current_cell, visited_cells, centroid_line_angle: float, current_direction_angle: float, 
-                           weight_centroid = 0.5, directional = "bidirectional", allow_diagonal_in_path = True):
+                           weight_centroid, directional = "bidirectional", allow_diagonal_in_path = True, angle_offset_rad = 0):
 
-    centroid_angle_diff_of_neighbors = _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, centroid_line_angle, directional, allow_diagonal_in_path)
+    centroid_angle_diff_of_neighbors = _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, centroid_line_angle+angle_offset_rad, directional, allow_diagonal_in_path)
 
     if centroid_angle_diff_of_neighbors: # if list is not empty
 
@@ -251,11 +251,12 @@ def _find_next_cell_hybrid(grid, current_cell, visited_cells, centroid_line_angl
 
     else:
         # No unvisited neighbor is found. Find the closest unvisited cell
-        print("No unvisited neighbor found. Finding closest unvisited cell...")
+        #print("No unvisited neighbor found. Finding closest unvisited cell...")
         return _find_closest_cell(grid, current_cell, visited_cells) # closest unvisited cell. returns None if no more valid cells are left
 
 # Alternative ways to do traversal order path planning
-def single_drone_traversal_order_alt(grid, start_cell, start_gps, polygon: Polygon, method, allow_diagonal_in_path = True): 
+def single_drone_traversal_order_alt(grid, start_cell, start_gps, polygon: Polygon,
+                                     method, allow_diagonal_in_path = True, hybrid_centroid_weight = 0.5): 
 
     start_cell_y = start_cell[0]
     start_cell_x = start_cell[1]
@@ -271,7 +272,7 @@ def single_drone_traversal_order_alt(grid, start_cell, start_gps, polygon: Polyg
     # Calculate the centroid line angle (remember, centroid is in coordinates, so we need start_gps)
     centroid_line_angle = math.atan2(centroid.y - start_coord_y, centroid.x - start_coord_x)  # angle in radians
 
-    print(f"Centroid line angle: {centroid_line_angle}")
+    #print(f"Centroid line angle: {centroid_line_angle}")
 
     # For "hybrid" method, we also need the current direction angle
     current_direction_angle = 0.0  # initial direction angle (radians). Could be set to any value, as it will be updated after the first move.
@@ -287,9 +288,15 @@ def single_drone_traversal_order_alt(grid, start_cell, start_gps, polygon: Polyg
             next_cell = _find_next_cell_centroid(grid, current_cell, vis, centroid_line_angle, allow_diagonal_in_path=allow_diagonal_in_path, angle_offset_rad=math.pi/2)
         elif method == 'centroid180':
             next_cell = _find_next_cell_centroid(grid, current_cell, vis, centroid_line_angle, allow_diagonal_in_path=allow_diagonal_in_path, angle_offset_rad=math.pi)
-        elif method == "hybrid":
-            # (use the default weight)
-            next_cell = _find_next_cell_hybrid(grid, current_cell, vis, centroid_line_angle, current_direction_angle, allow_diagonal_in_path=allow_diagonal_in_path)
+        elif method == "centroid_hybrid":
+            next_cell = _find_next_cell_hybrid(grid, current_cell, vis, centroid_line_angle, current_direction_angle, 
+                                               hybrid_centroid_weight, allow_diagonal_in_path=allow_diagonal_in_path)
+            # Update current direction angle
+            if next_cell is not None:
+                current_direction_angle = math.atan2(next_cell[0] - current_cell[0], next_cell[1] - current_cell[1]) 
+        elif method == "centroid90_hybrid":
+            next_cell = _find_next_cell_hybrid(grid, current_cell, vis, centroid_line_angle, current_direction_angle, 
+                                               hybrid_centroid_weight, allow_diagonal_in_path=allow_diagonal_in_path, angle_offset_rad=math.pi/2)
             # Update current direction angle
             if next_cell is not None:
                 current_direction_angle = math.atan2(next_cell[0] - current_cell[0], next_cell[1] - current_cell[1]) 

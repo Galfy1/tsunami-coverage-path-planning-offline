@@ -17,10 +17,16 @@ CAMERA_COVERAGE_LEN = 10  # meters. coverage of the drone camera in the narrowes
 ALLOW_DIAGONAL_IN_BFT = False 
 
 # Offline Plotting Settings (this is just for single drone traversal plotting):
-PLOTTING_METHOD_SELECTION = "centroid180"  # Options: "BFT","centroid", "centroid90", "hybrid". All data relevant for all modes will be saved in the pickle file anyway - so this setting is just for plotting
+PLOTTING_METHOD_SELECTION = "centroid90_hybrid"  # Options: "BFT",
+                                           #          "centroid", "centroid90","centroid180", (uses unidirectional by default)
+                                           #          "centroid_hybrid", "centroid90_hybrid", (uses bidirectional by default + biases the drone towards its current moving direction)
+                                           #                                                  (because bidirectional is used, centroid180_hybrid is not relevant here - as it would be the same as centroid_hybrid)
+                                           # All data relevant for all modes will be saved in the pickle file anyway - so this setting is just for plotting
 PLOTTING_ONLY_PLOT_POINTS = False # If true, only the waypoints are plotted. If false, the full path planning lines are also plotted
 PLOTTING_ALLOW_DIAGONAL_IN_PATH_PLANNING = True # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
+PLOTTING_HYBRID_CENTROID_WEIGHT = 0.6 # (Only relevant if a hybrid method) how much weight to put on centroid direction vs current direction (0 = only current direction, 1 = only centroid direction)
 
+# TODO få hybrid vægten herud
 
 # TODO følgene kan bruges til noter i rapporten. kan også bruges ti at sammenligne single og multi drone behavior.
 # SINGLE DRONE OBSERVATIONS:
@@ -34,10 +40,10 @@ PLOTTING_ALLOW_DIAGONAL_IN_PATH_PLANNING = True # THIS IS JUST FOR PLOTTING IN T
             # "centroid90" which makes paths parallel to the centroid line
         # "centroid" does the same as "centroid180" (asuming unidirectional) - BUT, at the start, the drone is forced to fly directly to the other side of the polygon before starting the real "coverage pattern"
 
+# TODO hybrider performer ikke så godt med single drone... men tror måske de performer bedre med multi droner. (men har ikke tested det endnu)
 
-# TODO Lav hybrid, så den også bruger centroid 90 og 180? nej vent.. for den er jo bidirectional..?? tænk over hvad vi gør med hybrid
 
-# TODO skriv hvad de forskellig modes er.. og at centroud (pure centroid) er unidirection. og hvordan hybrid er andereldes (er bi directional også)
+# TODO skriv i rapporten hvad de forskellig modes er.. og at centroud (pure centroid) er unidirection. og hvordan hybrid er andereldes (er bi directional også)
 
 # NOTE: We have tried to keep all coords, cells, grids, etc. (y,x) aka (lat, lon) - besides shapely Point, those are (x,y)
 
@@ -212,7 +218,8 @@ def main(args=None) -> None:
     if (PLOTTING_METHOD_SELECTION == "BFT"):
         traversal_order_cells = single_drone_traversal_order_bft(fly_nofly_grid, home_cell, allow_diagonal_in_bft=ALLOW_DIAGONAL_IN_BFT, allow_diagonal_in_path=PLOTTING_ALLOW_DIAGONAL_IN_PATH_PLANNING)
     else:
-        traversal_order_cells = single_drone_traversal_order_alt(fly_nofly_grid, home_cell, DRONE_START, polygon, method=PLOTTING_METHOD_SELECTION, allow_diagonal_in_path=PLOTTING_ALLOW_DIAGONAL_IN_PATH_PLANNING)
+        traversal_order_cells = single_drone_traversal_order_alt(fly_nofly_grid, home_cell, DRONE_START, polygon, method=PLOTTING_METHOD_SELECTION,
+                                                                 allow_diagonal_in_path=PLOTTING_ALLOW_DIAGONAL_IN_PATH_PLANNING, hybrid_centroid_weight=PLOTTING_HYBRID_CENTROID_WEIGHT)
     traversal_order_gps = convert_cells_to_gps(traversal_order_cells, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y)
     #print("TRAVERSAL ORDER GPS COORDS:", traversal_order_gps)
 

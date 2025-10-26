@@ -6,6 +6,7 @@ from breadth_first_traversal import breadth_first_traversal
 from custom_cell_tools import is_cell_valid, dRow_4way, dCol_4way, dRow_8way, dCol_8way
 
 
+
 # Order that make sure next cell is a neighbor of the current cell (breadth first traversal does not guarantee this)
 def single_drone_traversal_order_bft(grid, start_cell, allow_diagonal_in_bft=False, allow_diagonal_in_path=False):
     bft = breadth_first_traversal(grid, start_cell, allow_diagonal=allow_diagonal_in_bft)
@@ -63,7 +64,6 @@ def single_drone_traversal_order_bft(grid, start_cell, allow_diagonal_in_bft=Fal
 
 # TODO: !!! ALTERNATIV STRATEGI: BARE VÆLG DEN FØRSTE NEIBOR DER ER FRI. (start med venstre, så op, så højre, så ned, eller sådan noget). så holder dronen altid til venstre
 
-
 def _find_closest_cell(grid, current_cell, visited_cells):
     min_dist = float("inf")
     closest_cell = None
@@ -98,7 +98,6 @@ def _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, ce
             angle_to_neighbor = math.atan2(neighbor_cell[0] - current_cell[0], neighbor_cell[1] - current_cell[1])  # angle in radians
 
             # Calculate angle difference to centroid line angle
-            
             angle_diff_rad = abs(angle_to_neighbor - centroid_line_angle)    # raw difference, but could be anywhere from 0 to 2π.
             angle_diff_rad = min(angle_diff_rad, 2*math.pi - angle_diff_rad) # ensure in [0, pi]. This step ensures we are measuring the shorter way around the circle (e.g. 350° → 10°).
             if directional == "bidirectional":
@@ -110,11 +109,6 @@ def _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, ce
 
     return result  # list of (neighbor_cell, angle_diff_rad)
 
-    #         # Check if this neighbor has the smallest angle difference so far
-    #         if (neighbor_with_smallest_angle_diff is None) or (angle_diff_rad < neighbor_with_smallest_angle_diff[1]):
-    #             neighbor_with_smallest_angle_diff = (neighbor_cell, angle_diff_rad)
-
-    # return neighbor_with_smallest_angle_diff  # (neighbor_cell, angle_diff_rad) or None if no valid neighbor found
 
 
 # "unidirectional" angle difference (0 to pi). "bidirectional" would be (0 to pi/2). 

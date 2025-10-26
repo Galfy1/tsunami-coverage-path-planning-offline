@@ -8,6 +8,7 @@ dCol_8way = [ 0, 1, 1, 1, 0, -1, -1, -1]
 
 # Function to check if a cell
 # is be visited or not
+# (its assumed that grid and vis are numpy arrays and cells are stored as (y,x))
 def is_cell_valid(grid, vis, x, y):
   
     # If cell lies out of bounds

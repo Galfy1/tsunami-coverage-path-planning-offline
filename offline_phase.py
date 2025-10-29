@@ -4,7 +4,8 @@ from shapely.geometry import Point, Polygon, LineString
 from shapely.ops import nearest_points
 import math
 #from sympy import Add
-from breadth_first_traversal import breadth_first_traversal, single_drone_traversal_order_bft, single_drone_traversal_order_alt
+from breadth_first_traversal import breadth_first_traversal
+from single_drone_path_planning import single_drone_traversal_order_bft, single_drone_traversal_order_alt
 import matplotlib.pyplot as plt
 import pickle
 
@@ -26,7 +27,7 @@ PLOTTING_ONLY_PLOT_POINTS = False # If true, only the waypoints are plotted. If 
 PLOTTING_ALLOW_DIAGONAL_IN_PATH_PLANNING = True # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
 PLOTTING_HYBRID_CENTROID_WEIGHT = 0.6 # (Only relevant if a hybrid method) how much weight to put on centroid direction vs current direction (0 = only current direction, 1 = only centroid direction)
 
-# TODO få hybrid vægten herud
+# TODO skriv i rapporten and centroid metoden ikke accounter for nofly zones
 
 # TODO følgene kan bruges til noter i rapporten. kan også bruges ti at sammenligne single og multi drone behavior.
 # SINGLE DRONE OBSERVATIONS:
@@ -48,20 +49,12 @@ PLOTTING_HYBRID_CENTROID_WEIGHT = 0.6 # (Only relevant if a hybrid method) how m
 # NOTE: We have tried to keep all coords, cells, grids, etc. (y,x) aka (lat, lon) - besides shapely Point, those are (x,y)
 
 
-
 # TODO "Firkant problemet".. (se paint)
     # potentiel løsning: lav en funktion til at detecte og centroid alignemnt skal slås til eller fra. 
         # Det gør den ved at beregne polygonens "summet kantvinkel - kalder jeg det". 
         # aka gå igennem alle edges i polygonen og kig på dens vinkel (relativt til x-aksen) og gang dem med længden (der er så den vægtet "kant vinklen"). Sum alle de vægtede kantvinkelr op
                 # hvis den summede kantvinkel er 45grader +-22,5grader, så aktiver centroid alignemnt. ellers slå det fra.
 
-
-# TODO HVORFOR ER CENTROID 90 grader lineup ?? (ikke centroid90)
-    # var det noget jeg ikke fik pushet på desktoppen?? eller er det en bug jeg først har fundet nu?
-        # den ser ellers ud til at være korrekt, den er bare drejet 90 grader i forhold til hvad jeg forventer !??!
-    # OGSÅ: der resultat nu jeg får i centroid90, hvorfor kan den gå perfekt baglæns? når den er sat til unidirectional?
-
-# TODO smid single drone path planning funktionerne i en anden fil end funktionen til at lave bft
 
 
 
@@ -96,50 +89,32 @@ def meters_to_lat_long_dif(current_approx_lat, meters: float):
     return lat_diff, lon_diff
 
 
+def find_home_cell(drone_start_coord, x_axis_coords, y_axis_coords, grid):
 
-def main(args=None) -> None:
+    home_cell = None
+    for i in range(len(y_axis_coords) - 1):
+        for j in range(len(x_axis_coords) - 1):
+            y_cell_min, y_cell_max = sorted([y_axis_coords[i], y_axis_coords[i + 1]]) # with sorted it doesn’t matter whether your coordinate list is increasing or decreasing in value (we force it to be increasing so our checking logic below works)
+            x_cell_min, x_cell_max = sorted([x_axis_coords[j], x_axis_coords[j + 1]])
 
-
-    # Note: polygons can for example for created in Mission Planner and exported as .poly files
-    polygon_coords = []
-    with open('baylands_polygon_v3.poly','r') as f: 
-        reader = csv.reader(f,delimiter=' ')
-        for row in reader:
-            if(row[0] == '#saved'): continue # skip header
-            polygon_coords.append((float(row[1]), float(row[0]))) # (lat, lon)(aka y,x) to (lon, lat)(aka x,y)
-
-    print("''''''''''''''''''''''''''")
-    print(polygon_coords)
-    print("''''''''''''''''''''''''''")
-    polygon = Polygon(polygon_coords)
-
-    no_fly_zone = []
-    with open('no_fly_zone.poly','r') as f:
-        reader = csv.reader(f,delimiter=' ')
-        for row in reader:
-            if(row[0] == '#saved'): continue # skip header
-            no_fly_zone.append((float(row[1]), float(row[0]))) # (lat, lon)(aka y,x) to (lon, lat)(aka x,y)
-
-    # Convert no-fly zone coordinates to a Shapely polygon
-    no_fly_zone_polygon = Polygon(no_fly_zone)
-
-    # Example polygon (GPS coordinates)
-    # polygon_coords = [
-    #     (12.490, 41.890),  # Example near Rome
-    #     (12.492, 41.890),
-    #     (12.492, 41.892),
-    #     (12.490, 41.892),
-    #     (12.490, 41.890)
-    # ]
+            # Check if drone start is inside this cell
+            if y_cell_min <= drone_start_coord[0] < y_cell_max and x_cell_min <= drone_start_coord[1] < x_cell_max:
+                home_cell = (i, j)
+                break
+        if home_cell:
+            break
+    # Check if found
+    if home_cell is None:
+        raise ValueError("Drone start position is outside the grid")
+    if grid[home_cell[0], home_cell[1]] == 0:
+        raise ValueError("Drone start position is in a no-fly zone")
+    
+    return home_cell
 
 
-    # make sure polygon is convex
-    if(polygon.equals(polygon.convex_hull) == False):
-        raise ValueError("Polygon must be convex")
-    if(no_fly_zone_polygon.equals(no_fly_zone_polygon.convex_hull) == False): # TODO, NOT SURE IF THIS IS REQURED
-        raise ValueError("No-fly zone polygon must be convex")
-
-    grid_res_y, grid_res_x = meters_to_lat_long_dif(DRONE_START[0], CAMERA_COVERAGE_LEN)
+def create_grid_from_polygon_and_noflyzones(polygon: Polygon, no_fly_zones: list[Polygon], drone_start_coord, camera_coverage_len):
+    
+    grid_res_y, grid_res_x = meters_to_lat_long_dif(drone_start_coord[0], camera_coverage_len)
 
     # Compute bounding box of polygon
     minx, miny, maxx, maxy = polygon.bounds
@@ -154,41 +129,84 @@ def main(args=None) -> None:
     # Create empty grid
     fly_nofly_grid = np.zeros((len(y_axis_coords), len(x_axis_coords)), dtype=int)
     
-    # Fill grid
+    # Fill grid from polygon
     for i, y in enumerate(y_axis_coords):
         for j, x in enumerate(x_axis_coords):
             point = Point(x, y)
-            if polygon.contains(point) and not no_fly_zone_polygon.contains(point):
+            if polygon.contains(point):
+                # Check if point is in any no-fly zone
+                if any(no_fly_zone.contains(point) for no_fly_zone in no_fly_zones):
+                    continue  # point is in a no-fly zone, leave as 0
                 fly_nofly_grid[i, j] = 1
-                #print("YAP:", (i,j))
 
 
     #### Find grid cell corresponding to drone start position ####
-    home_cell = None
-    for i in range(len(y_axis_coords) - 1):
-        for j in range(len(x_axis_coords) - 1):
-            y_cell_min, y_cell_max = sorted([y_axis_coords[i], y_axis_coords[i + 1]]) # with sorted it doesn’t matter whether your coordinate list is increasing or decreasing in value (we force it to be increasing so our checking logic below works)
-            x_cell_min, x_cell_max = sorted([x_axis_coords[j], x_axis_coords[j + 1]])
-
-            # Check if drone start is inside this cell
-            if y_cell_min <= DRONE_START[0] < y_cell_max and x_cell_min <= DRONE_START[1] < x_cell_max:
-                home_cell = (i, j)
-                break
-        if home_cell:
-            break
-    # Check if found
-    if home_cell is None:
-        raise ValueError("Drone start position is outside the grid")
-    if fly_nofly_grid[home_cell[0], home_cell[1]] == 0:
-        raise ValueError("Drone start position is in a no-fly zone")
+    home_cell = find_home_cell(drone_start_coord, x_axis_coords, y_axis_coords, fly_nofly_grid)
 
     print(f"home_cell: {home_cell}, grid value at home_cell: {fly_nofly_grid[home_cell[0], home_cell[1]]}")
 
+    return fly_nofly_grid, home_cell, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y
+
+
+def main(args=None) -> None:
+
+
+    # Note: polygons can for example for created in Mission Planner and exported as .poly files
+    polygon_coords = []
+    with open('baylands_polygon_v3.poly','r') as f: 
+        reader = csv.reader(f,delimiter=' ')
+        for row in reader:
+            if(row[0] == '#saved'): continue # skip header
+            polygon_coords.append((float(row[1]), float(row[0]))) # (lat, lon)(aka y,x) to (lon, lat)(aka x,y)
+
+    # print("''''''''''''''''''''''''''")
+    # print(polygon_coords)
+    # print("''''''''''''''''''''''''''")
+    polygon = Polygon(polygon_coords)
+    if not polygon.is_valid:
+        raise ValueError("Polygon is not valid")
+
+    # no_fly_zone = []
+    # with open('no_fly_zone.poly','r') as f:
+    #     reader = csv.reader(f,delimiter=' ')
+    #     for row in reader:
+    #         if(row[0] == '#saved'): continue # skip header
+    #         no_fly_zone.append((float(row[1]), float(row[0]))) # (lat, lon)(aka y,x) to (lon, lat)(aka x,y)
+
+    no_fly_zones = []
+    for filename in os.listdir("no_fly_zones"):
+        if filename.endswith('.poly'):
+            with open(os.path.join("no_fly_zones", filename), 'r') as f:
+                reader = csv.reader(f,delimiter=' ')
+                current_no_fly_zone = []
+                for row in reader:
+                    if(row[0] == '#saved'): continue # skip header
+                    current_no_fly_zone.append((float(row[1]), float(row[0]))) # (lat, lon)(aka y,x) to (lon, lat)(aka x,y)
+                no_fly_zones.append(Polygon(current_no_fly_zone)) # convert no-fly zone coordinates to a Shapely polygon
+
+
+
+
+    # # Convert no-fly zone coordinates to a Shapely polygon
+    # no_fly_zone_polygon = Polygon(no_fly_zone)
+    # no_fly_zones = [no_fly_zone_polygon] # we can extend this to multiple no-fly zones if needed
+
+    # make sure polygon is convex
+    if(polygon.equals(polygon.convex_hull) == False):
+        raise ValueError("Polygon must be convex")
+    for no_fly_zone_polygon in no_fly_zones:
+        if(no_fly_zone_polygon.equals(no_fly_zone_polygon.convex_hull) == False): # TODO, NOT SURE IF THIS IS REQURED
+            raise ValueError("No-fly zone polygon must be convex")
+
+    fly_nofly_grid, home_cell, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y = create_grid_from_polygon_and_noflyzones(
+                                                                                            polygon, no_fly_zones, DRONE_START, CAMERA_COVERAGE_LEN)
+
+    # Compute breadth-first traversal from home cell
     bf_traversal_cells = breadth_first_traversal(fly_nofly_grid, home_cell, allow_diagonal=ALLOW_DIAGONAL_IN_BFT)
     bf_traversal_gps = convert_cells_to_gps(bf_traversal_cells, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y)
 
     # Prepare data to save
-    centroid = polygon.centroid
+    centroid = polygon.centroid 
     centroid_coords = (centroid.y, centroid.x)  # (lat, lon) (we dont want drone to be dependent on shapely Point objects)
     data_to_save = {
         'home_cell': home_cell,
@@ -199,7 +217,7 @@ def main(args=None) -> None:
         'centroid': centroid_coords,
     }
     # Save traversal order to a file using pickle
-    with open('bf_traversal.pkl', 'wb') as fp:
+    with open('offline_phase_data.pkl', 'wb') as fp:
         pickle.dump(data_to_save, fp)
 
     # # heatmap plot

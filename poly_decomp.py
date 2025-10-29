@@ -8,7 +8,7 @@ import numpy as np
 import math
 
 # reuse code from offline_phase.py
-from offline_phase import meters_to_lat_long_dif, find_home_cell
+from offline_phase import create_grid_from_polygon_and_noflyzones
 
 
 DRONE_START = (37.4122067992952, -121.998909115791) # (lat, lon) aka (y,x)
@@ -36,27 +36,8 @@ def main(args=None) -> None:
 
     # This decomp method does not allow for holes (i.e. no "no fly zones" inside the polygon)
 
-
-    grid_res_y, grid_res_x = meters_to_lat_long_dif(DRONE_START[0], CAMERA_COVERAGE_LEN)
-
-    # Compute bounding box of polygon
-    minx, miny, maxx, maxy = polygon.bounds
-
-    # Generate pre-aligned x and y "grid" coords. (these coords are parallel with the lat/lon axes.)
-    x_axis_coords = np.arange(minx, maxx, grid_res_x) 
-    y_axis_coords = np.arange(miny, maxy, grid_res_y)
-
-    #### Construct fly_grid #####
-
-    # Create empty grid
-    fly_grid = np.zeros((len(y_axis_coords), len(x_axis_coords)), dtype=int)
-    
-    # Fill grid from polygon
-    for i, y in enumerate(y_axis_coords):
-        for j, x in enumerate(x_axis_coords):
-            point = Point(x, y)
-            if polygon.contains(point):
-                fly_grid[i, j] = 1
+    fly_grid, home_cell, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y = create_grid_from_polygon_and_noflyzones(
+                                                                                        polygon, [], DRONE_START, CAMERA_COVERAGE_LEN)
 
 
 

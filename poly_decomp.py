@@ -125,21 +125,30 @@ def main(args=None) -> None:
             # Find candidate sweep line with largest gap severity
             max_gap_severity = -1
             selected_sweep_line = None
-            for sweep_line, points, gap_severity in non_monotone_sweep_lines:
+            for sweep_line, _ , gap_severity in non_monotone_sweep_lines:
                 if gap_severity > max_gap_severity:
                     max_gap_severity = gap_severity
                     selected_sweep_line = sweep_line
 
             # Split the grid along the selected sweep line into two sub-grids
-            if selected_sweep_line.coords[0][0] == selected_sweep_line.coords[
-                1][0]:  # horizontal line
-                split_y = int(selected_sweep_line.coords[0][1])
-                sub_grid1 = grid[0:split_y, :]
-                sub_grid2 = grid[split_y:, :]
+            if selected_sweep_line.coords[0][0] == selected_sweep_line.coords[1][0]:  # horizontal line (if p1 y matches p2 y)
+                split_y = int(selected_sweep_line.coords[0][1]) # "height"(y) if horizontal line
+                # create sub-grids (same dimensions as original grid, but with 0s outside the sub-area
+                sub_grid1 = np.copy(grid)
+                sub_grid1[split_y:,:] = 0
+                sub_grid2 = np.copy(grid)
+                sub_grid2[:split_y,:] = 0
+            else:  # vertical line
+                split_x = int(selected_sweep_line.coords[0][0]) # "width"(x) if vertical line
+                sub_grid1 = np.copy(grid)
+                sub_grid1[:, split_x:] = 0
+                sub_grid2 = np.copy(grid)
+                sub_grid2[:, :split_x] = 0
 
-                # add sub-grids to queue for further processing
-                grid_queue.append(sub_grid1)
-                grid_queue.append(sub_grid2)
+            # add sub-grids to queue for further processing
+            grid_queue.append(sub_grid1)
+            grid_queue.append(sub_grid2)
+
         else:
             print("Polygon is regular (monotone in at least one direction)")
             # STOP HER!!! VI ER DONE FOR NU

@@ -21,7 +21,7 @@ CAMERA_COVERAGE_LEN = 4 # meters. coverage of the drone camera in the narrowest 
 #       APART FROM: Shapely stuff (e.g. Polygon, Linestring), that is (x,y) to match shapely convention
 
 
-# TODO er ikke sikker på "regular" og "irregular" er defineret korrekt ift artiklen...
+# TODO er ikke sikker på "regular" og "irregular" er defineret korrekt .. men det er sådan de kalder det i artiklen?
 
 def are_grids_adjacent(grid1: np.ndarray, grid2: np.ndarray) -> bool:
     # Both grids are same size. they either have 1 or 0. we want to check if they share a common boundary segment of 1s

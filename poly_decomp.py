@@ -133,9 +133,55 @@ def culling_merging(all_sub_grids):
 
 
 
-def split_grid_with_disconntected_sections():
-    pass
+def split_grid_with_disconnected_sections(grid: np.ndarray):
+    # check for disconnected sections in the grid and split into multiple sub-grids if found
 
+    disconnected_sections = []
+
+    for y in range(grid.shape[0]):
+        for x in range(grid.shape[1]):
+            if grid[y][x] == 1:
+                # found a flyable cell, start flood fill to find all connected cells
+                visited = np.zeros_like(grid)
+                to_visit = queue()
+                to_visit.append( (y,x) )
+                visited[y][x] = 1
+
+                # flood fill flyable area (1s in grid)
+                while(len(to_visit) > 0):
+                    cy, cx = to_visit.popleft()
+
+                    # check 4-neighbors
+                    for direction in range(4):
+                        adjx = cx + dx_4way[direction]
+                        adjy = cy + dy_4way[direction]
+
+                        # bounds check
+                        if (adjx < 0 or adjy < 0 or adjx >= grid.shape[1] or adjy >= grid.shape[0]):
+                            continue # out of bounds
+
+                        if grid[adjy][adjx] == 1 and visited[adjy][adjx] == 0:
+                            visited[adjy][adjx] = 1
+                            to_visit.append( (adjy, adjx) )
+                
+                # Now, visited contains all connected cells from the starting point
+                # Create a new sub-grid for this connected section
+                sub_grid = np.zeros_like(grid)
+                for yy in range(grid.shape[0]):
+                    for xx in range(grid.shape[1]):
+                        if visited[yy][xx] == 1:
+                            sub_grid[yy][xx] = 1
+                
+                disconnected_sections.append(sub_grid)
+
+                # Remove the visited cells from the original grid to avoid re-processing
+                for yy in range(grid.shape[0]):
+                    for xx in range(grid.shape[1]):
+                        if visited[yy][xx] == 1:
+                            grid[yy][xx] = 0
+
+
+    return disconnected_sections
 
 
 def split_grid_along_sweep_line(grid: np.ndarray, sweep_line: LineString):
@@ -157,7 +203,10 @@ def split_grid_along_sweep_line(grid: np.ndarray, sweep_line: LineString):
         sub_grid2 = np.copy(grid)
         sub_grid2[:, :split_x] = 0
 
-    # TODO, split yderligere, hvis der er disconnected sections i sub-grids
+
+    # If any of the sub-grids have disconnected sections, split them further
+    sub_grids.extend(split_grid_with_disconnected_sections(sub_grid1))
+    sub_grids.extend(split_grid_with_disconnected_sections(sub_grid2))
 
     return sub_grids
 
@@ -172,7 +221,7 @@ def scan_for_non_monotone_sections(grid: np.ndarray):
 
     # go through all horizontal sweep lines:
     p1_x = 0
-    p2_x = len(grid.shape[1])
+    p2_x = grid.shape[1]
     for y in range(grid.shape[0]):
         intersection_points = []
         # check intersection with grid by going through the sweep line and check for 1-->0 or 0-->1 transitions
@@ -201,7 +250,7 @@ def scan_for_non_monotone_sections(grid: np.ndarray):
 
     # go through all vertical sweep lines:
     p1_y = 0
-    p2_y = len(grid.shape[0])
+    p2_y = grid.shape[0]
     for x in range(grid.shape[1]):
         intersection_points = []
         # check intersection with grid by going through the sweep line and check for 1-->0 or 0-->1 transitions
@@ -247,11 +296,10 @@ def main(args=None) -> None:
 
     # This decomp method does not allow for holes (i.e. no "no fly zones" inside the polygon)
 
-    fly_grid, home_cell, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y = create_grid_from_polygon_and_noflyzones(
-                                                                                        polygon, [], DRONE_START, CAMERA_COVERAGE_LEN)
+    fly_grid, _ , _ , _ , _ , _  = create_grid_from_polygon_and_noflyzones(polygon, [], DRONE_START, CAMERA_COVERAGE_LEN)
     # (fly_grid is a 2D numpy array where 1 = flyable, 0 = no-fly zone - (y,x) indexing)
 
-
+    regular_grids_result = []
 
     # go though each "candidate sweep line" and check for non-monotone sections
 
@@ -280,17 +328,19 @@ def main(args=None) -> None:
             # Split grid along selected sweep line
             sub_grids = split_grid_along_sweep_line(grid, selected_sweep_line)
 
+            print(f"Split grid into {len(sub_grids)} sub-grids along sweep line")
+
             # add sub-grids to queue for further processing
             for sub_grid in sub_grids:
                 grid_queue.append(sub_grid)
-
         else:
             print("Polygon is regular (monotone in at least one direction)")
-            # STOP HER!!! VI ER DONE FOR NU
+            # store the regular grid
+            regular_grids_result.append(grid)
 
+    print (f"Decomposition resulted in {len(regular_grids_result)} regular sub-polygons")
 
-
-    print(f"Selected sweep line for splitting: {selected_sweep_line} with gap severity {max_gap_severity}")
+    #print(f"Selected sweep line for splitting: {selected_sweep_line} with gap severity {max_gap_severity}")
 
     # Plot grid and sweep lines for visualization:
     import matplotlib.pyplot as plt

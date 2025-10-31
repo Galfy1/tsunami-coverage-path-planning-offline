@@ -143,7 +143,7 @@ def create_grid_from_polygon_and_noflyzones(polygon: Polygon, no_fly_zones: list
     #### Find grid cell corresponding to drone start position ####
     home_cell = find_home_cell(drone_start_coord, x_axis_coords, y_axis_coords, fly_nofly_grid)
 
-    print(f"home_cell: {home_cell}, grid value at home_cell: {fly_nofly_grid[home_cell[0], home_cell[1]]}")
+    #print(f"home_cell: {home_cell}, grid value at home_cell: {fly_nofly_grid[home_cell[0], home_cell[1]]}")
 
     return fly_nofly_grid, home_cell, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y
 

@@ -71,29 +71,63 @@ def culling_merging(all_sub_grids):
     # "To prevent excessive fragmentation, a culling step is performed in which adjacent sub-polygons
     # that share a common boundary segment are merged if their union satisfies the acceptability criterion"
 
+    sub_grid_pack_queue = queue() # each element in the queue is a list of sub-grids to be processed
+    sub_grid_pack_queue.append(all_sub_grids)
+
+
     #sub_grids_temp = []
     all_sub_grids_after_culling = []
 
-    # Go through each pair of sub-grids and check if they are adjacent (i.e., share a common boundary segment)
-    for sub_grid in all_sub_grids:
 
-        # check all other subgrids:
-        for sub_grid_other in all_sub_grids:
-            if sub_grid == sub_grid_other:
-                continue # skip self-comparison
+    while(len(sub_grid_pack_queue) > 0):
 
-            if are_grids_adjacent(sub_grid, sub_grid_other):
-                # Check if their union satisfies the acceptability criterion
-                merged_grid = merge_grids(sub_grid, sub_grid_other)
-                if is_acceptable(merged_grid):
-                    # Merge the two sub-grids
-                    sub_grid = merged_grid # SAMME HER
-                    all_sub_grids.remove(sub_grid_other) # HVORDAN VIRKER DET HVIS VI PILLER VED DET ARRAY VI ER VED AT ITERERE OVER???
+        sub_grids_pack = sub_grid_pack_queue.popleft()
 
-        all_sub_grids_after_culling.append(sub_grid)
+        new_sub_grids_pack = []
+
+        ignore_grids = []
+
+        merge_happened = True
+
+        # Go through each pair of sub-grids and check if they are adjacent (i.e., share a common boundary segment)
+        for sub_grid in sub_grids_pack:
+
+            # check all other subgrids:
+            for sub_grid_other in sub_grids_pack:
+                if sub_grid == sub_grid_other:
+                    continue # skip self-comparison
+                if sub_grid_other in ignore_grids:
+                    continue # skip already merged grids
+
+                if are_grids_adjacent(sub_grid, sub_grid_other):
+                    # Check if their union satisfies the acceptability criterion
+                    merged_grid = merge_grids(sub_grid, sub_grid_other)
+                    _, grid_is_irregular = scan_for_non_monotone_sections(merged_grid)
+                    if grid_is_irregular == False:
+                        # Acceptability criterion satisfied!
+                        # Merge the two sub-grids
+                        #sub_grid = merged_grid # SAMME HER
+                        new_sub_grids_pack.append(merged_grid) 
+
+                        # make sure we dont check the two merged grids again:
+                        ignore_grids.append(sub_grid)
+                        ignore_grids.append(sub_grid_other)
+                        merge_happened = True
+                        break # exit inner loop to restart checking with new merged grid
+                    else:
+                        # no merge happened, keep the sub-grid as is
+                        new_sub_grids_pack.append(sub_grid)
+                        ignore_grids.append(sub_grid)
+
+        # Update the main queue with the new sub-grid packs if merges happened (if no merges happened, we are done)
+        if merge_happened:
+            sub_grid_pack_queue.append(new_sub_grids_pack)
+        else:
+            # no merges happened - our work here is done
+            all_sub_grids_after_culling = new_sub_grids_pack.copy()
 
 
-    # DET SKAL SKE FLERE GANGE, INDTIL INGEN FLERE KAN SLÅS SAMMEN!!!
+        # DET SKAL SKE FLERE GANGE, INDTIL INGEN FLERE KAN SLÅS SAMMEN!!!
 
     return all_sub_grids_after_culling
 
@@ -192,7 +226,9 @@ def scan_for_non_monotone_sections(grid: np.ndarray):
             non_monotone_sweep_lines.append( (sweep_line, intersection_points, gap_severity) )
             non_monotone_in_x = True
 
-    return non_monotone_sweep_lines, non_monotone_in_x, non_monotone_in_y
+    is_irregular = non_monotone_in_x and non_monotone_in_y
+
+    return non_monotone_sweep_lines, is_irregular
 
 
 def main(args=None) -> None:
@@ -226,10 +262,10 @@ def main(args=None) -> None:
 
         grid = grid_queue.popleft()
 
-        non_monotone_sweep_lines, non_monotone_in_x, non_monotone_in_y = scan_for_non_monotone_sections(grid)
+        non_monotone_sweep_lines, grid_is_irregular = scan_for_non_monotone_sections(grid)
 
         # Check if "polygon" is irregular (i.e., non–monotone in both directions)
-        if non_monotone_in_x and non_monotone_in_y:
+        if grid_is_irregular:
             print("Polygon is irregular (non-monotone in both directions)")
             # We need to split!
 

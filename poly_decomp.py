@@ -17,7 +17,11 @@ DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
 CAMERA_COVERAGE_LEN = 4 # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
 
 
+# NOTE: All indexing of grids is done as (y,x) - to match lat, lon convention
+#       APART FROM: Shapely stuff (e.g. Polygon, Linestring), that is (x,y) to match shapely convention
 
+
+# TODO er ikke sikker på "regular" og "irregular" er defineret korrekt ift artiklen...
 
 def are_grids_adjacent(grid1: np.ndarray, grid2: np.ndarray) -> bool:
     # Both grids are same size. they either have 1 or 0. we want to check if they share a common boundary segment of 1s
@@ -188,8 +192,14 @@ def split_grid_along_sweep_line(grid: np.ndarray, sweep_line: LineString):
 
     sub_grids = []
 
+    # rows, cols = grid.shape
+
+    # (remember, shapely LineString coords are in (x,y) format, while our grid is in (y,x) format)
+
     # Split the grid along the selected sweep line into two sub-grids
-    if sweep_line.coords[0][0] == sweep_line.coords[1][0]:  # horizontal line (if p1 y matches p2 y)
+    if sweep_line.coords[0][1] == sweep_line.coords[1][1]:  # horizontal line (if p1 y matches p2 y)
+        # if rows < 2:
+        #     return []
         split_y = int(sweep_line.coords[0][1]) # "height"(y) if horizontal line
         # create sub-grids (same dimensions as original grid, but with 0s outside the sub-area
         sub_grid1 = np.copy(grid)
@@ -197,6 +207,8 @@ def split_grid_along_sweep_line(grid: np.ndarray, sweep_line: LineString):
         sub_grid2 = np.copy(grid)
         sub_grid2[:split_y,:] = 0
     else:  # vertical line
+        # if cols < 2:
+        #     return []
         split_x = int(sweep_line.coords[0][0]) # "width"(x) if vertical line
         sub_grid1 = np.copy(grid)
         sub_grid1[:, split_x:] = 0
@@ -208,7 +220,52 @@ def split_grid_along_sweep_line(grid: np.ndarray, sweep_line: LineString):
     sub_grids.extend(split_grid_with_disconnected_sections(sub_grid1))
     sub_grids.extend(split_grid_with_disconnected_sections(sub_grid2))
 
+    #     filtered_sub_grids = []
+#     for sub_grid in sub_grids:
+#         if sub_grid.any() and not np.array_equal(sub_grid, grid):
+#             filtered_sub_grids.append(sub_grid)
+
     return sub_grids
+
+
+
+# def split_grid_along_sweep_line(grid: np.ndarray, sweep_line: LineString):
+
+#     sub_grids = []
+
+#     rows, cols = grid.shape
+
+#     # (remember, shapely LineString coords are in (x,y) format, while our grid is in (y,x) format)
+
+#     # Split the grid along the selected sweep line into two sub-grids
+#     if sweep_line.coords[0][1] == sweep_line.coords[1][1]:  # horizontal line (if p1 y matches p2 y)
+#         if rows < 2:
+#             return []
+#         split_y = max(1, min(int(round(sweep_line.coords[0][1])), rows - 1))
+#         # create sub-grids (same dimensions as original grid, but with 0s outside the sub-area
+#         sub_grid1 = np.copy(grid)
+#         sub_grid1[split_y:, :] = 0
+#         sub_grid2 = np.copy(grid)
+#         sub_grid2[:split_y, :] = 0
+#     else:  # vertical line
+#         if cols < 2:
+#             return []
+#         split_x = max(1, min(int(round(sweep_line.coords[0][0])), cols - 1))
+#         sub_grid1 = np.copy(grid)
+#         sub_grid1[:, split_x:] = 0
+#         sub_grid2 = np.copy(grid)
+#         sub_grid2[:, :split_x] = 0
+
+#     # If any of the sub-grids have disconnected sections, split them further
+#     for candidate in (sub_grid1, sub_grid2):
+#         sub_grids.extend(split_grid_with_disconnected_sections(candidate))
+
+#     filtered_sub_grids = []
+#     for sub_grid in sub_grids:
+#         if sub_grid.any() and not np.array_equal(sub_grid, grid):
+#             filtered_sub_grids.append(sub_grid)
+
+#     return filtered_sub_grids
 
 
 

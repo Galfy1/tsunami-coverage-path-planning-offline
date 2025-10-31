@@ -3,7 +3,7 @@ import numpy as np
 import math
 from shapely.geometry import Point, LineString, Polygon
 from breadth_first_traversal import breadth_first_traversal
-from custom_cell_tools import is_cell_valid, dRow_4way, dCol_4way, dRow_8way, dCol_8way
+from custom_cell_tools import is_cell_valid, dx_4way, dy_4way, dx_8way, dy_8way
 
 
 
@@ -89,8 +89,8 @@ def _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, ce
     # MÅSKE LAV EN WARNING MED AT DET IKKE GIVER SUPER MEGET MENEING MED allow_diagonal_in_path = false for centroid stuff?
 
     for i in range(8):
-        adjx = x + dRow_8way[i]
-        adjy = y + dCol_8way[i]
+        adjx = x + dx_8way[i]
+        adjy = y + dy_8way[i]
         if (is_cell_valid(grid, visited_cells, adjx, adjy)):
             neighbor_cell = (adjy, adjx)
 

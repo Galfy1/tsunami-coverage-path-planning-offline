@@ -1,9 +1,9 @@
 # Direction vectors
-dRow_4way = [ -1, 0, 1, 0]
-dCol_4way = [ 0, 1, 0, -1]
+dx_4way = [ -1, 0, 1, 0]
+dy_4way = [ 0, 1, 0, -1]
 
-dRow_8way = [ -1, -1, 0, 1, 1, 1, 0, -1]
-dCol_8way = [ 0, 1, 1, 1, 0, -1, -1, -1]
+dx_8way = [ -1, -1, 0, 1, 1, 1, 0, -1]
+dy_8way = [ 0, 1, 1, 1, 0, -1, -1, -1]
 
 
 # Function to check if a cell

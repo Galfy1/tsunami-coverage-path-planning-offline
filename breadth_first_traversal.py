@@ -2,7 +2,7 @@ from collections import deque as queue
 import numpy as np
 import math
 from shapely.geometry import Point, LineString, Polygon
-from custom_cell_tools import is_cell_valid, dRow_4way, dCol_4way, dRow_8way, dCol_8way
+from custom_cell_tools import is_cell_valid, dx_4way, dy_4way, dx_8way, dy_8way
 
 # BASED ON https://www.geeksforgeeks.org/dsa/breadth-first-traversal-bfs-on-a-2d-array/
 
@@ -43,15 +43,15 @@ def breadth_first_traversal(grid, start_cell, allow_diagonal = False):
         # If diagonal movement is allowed, check the diagonal cells
         if allow_diagonal == False:
             for i in range(4):
-                adjx = x + dRow_4way[i]
-                adjy = y + dCol_4way[i]
+                adjx = x + dx_4way[i]
+                adjy = y + dy_4way[i]
                 if (is_cell_valid(grid, vis, adjx, adjy)):
                     q.append((adjy, adjx ))
                     vis[adjy][adjx] = True
         else:
             for i in range(8):
-                adjx = x + dRow_8way[i]
-                adjy = y + dCol_8way[i]
+                adjx = x + dx_8way[i]
+                adjy = y + dy_8way[i]
                 if (is_cell_valid(grid, vis, adjx, adjy)):
                     q.append((adjx, adjx))
                     vis[adjy][adjx] = True

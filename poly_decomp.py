@@ -7,6 +7,7 @@ from shapely.geometry import Polygon, Point, LineString
 import numpy as np
 import math
 from collections import deque as queue
+from custom_cell_tools import dx_4way, dy_4way
 
 # reuse code from offline_phase.py
 from offline_phase import create_grid_from_polygon_and_noflyzones
@@ -18,6 +19,180 @@ CAMERA_COVERAGE_LEN = 4 # meters. coverage of the drone camera in the narrowest 
 
 
 
+def are_grids_adjacent(grid1: np.ndarray, grid2: np.ndarray) -> bool:
+    # Both grids are same size. they either have 1 or 0. we want to check if they share a common boundary segment of 1s
+
+    # error check
+    if grid1.shape != grid2.shape:
+        raise ValueError("Grids must be of the same shape to check adjacency in this function")
+
+    # check all cells:
+    for y in range(grid1.shape[0]):
+        for x in range(grid1.shape[1]):
+
+            if grid1[y][x] == 1:
+
+                # check 4-neighbors in grid2
+                for direction in range(4):
+
+                    # adjacent cell coordinates
+                    adjx = x + dx_4way[direction]
+                    adjy = y + dy_4way[direction]
+
+                    # bounds check
+                    if (adjx < 0 or adjy < 0 or adjx >= grid2.shape[1] or adjy >= grid2.shape[0]):
+                        continue # out of bounds
+
+                    # check if adjacent cell in grid2 is 1
+                    if grid2[adjy][adjx] == 1:
+                        return True
+        
+    return False
+
+
+def merge_grids(grid1: np.ndarray, grid2: np.ndarray) -> np.ndarray:
+    # error check
+    if grid1.shape != grid2.shape:
+        raise ValueError("Grids must be of the same shape to merge")
+
+    merged_grid = np.copy(grid1)
+
+    for y in range(grid1.shape[0]):
+        for x in range(grid1.shape[1]):
+            
+            if grid2[y][x] == 1:
+                merged_grid[y][x] = 1
+
+    return merged_grid
+
+
+
+def culling_merging(all_sub_grids):
+    # "To prevent excessive fragmentation, a culling step is performed in which adjacent sub-polygons
+    # that share a common boundary segment are merged if their union satisfies the acceptability criterion"
+
+    #sub_grids_temp = []
+    all_sub_grids_after_culling = []
+
+    # Go through each pair of sub-grids and check if they are adjacent (i.e., share a common boundary segment)
+    for sub_grid in all_sub_grids:
+
+        # check all other subgrids:
+        for sub_grid_other in all_sub_grids:
+            if sub_grid == sub_grid_other:
+                continue # skip self-comparison
+
+            if are_grids_adjacent(sub_grid, sub_grid_other):
+                # Check if their union satisfies the acceptability criterion
+                merged_grid = merge_grids(sub_grid, sub_grid_other)
+                if is_acceptable(merged_grid):
+                    # Merge the two sub-grids
+                    sub_grid = merged_grid # SAMME HER
+                    all_sub_grids.remove(sub_grid_other) # HVORDAN VIRKER DET HVIS VI PILLER VED DET ARRAY VI ER VED AT ITERERE OVER???
+
+        all_sub_grids_after_culling.append(sub_grid)
+
+
+    # DET SKAL SKE FLERE GANGE, INDTIL INGEN FLERE KAN SLÅS SAMMEN!!!
+
+    return all_sub_grids_after_culling
+
+
+
+def split_grid_with_disconntected_sections():
+    pass
+
+
+
+def split_grid_along_sweep_line(grid: np.ndarray, sweep_line: LineString):
+
+    sub_grids = []
+
+    # Split the grid along the selected sweep line into two sub-grids
+    if sweep_line.coords[0][0] == sweep_line.coords[1][0]:  # horizontal line (if p1 y matches p2 y)
+        split_y = int(sweep_line.coords[0][1]) # "height"(y) if horizontal line
+        # create sub-grids (same dimensions as original grid, but with 0s outside the sub-area
+        sub_grid1 = np.copy(grid)
+        sub_grid1[split_y:,:] = 0
+        sub_grid2 = np.copy(grid)
+        sub_grid2[:split_y,:] = 0
+    else:  # vertical line
+        split_x = int(sweep_line.coords[0][0]) # "width"(x) if vertical line
+        sub_grid1 = np.copy(grid)
+        sub_grid1[:, split_x:] = 0
+        sub_grid2 = np.copy(grid)
+        sub_grid2[:, :split_x] = 0
+
+    # TODO, split yderligere, hvis der er disconnected sections i sub-grids
+
+    return sub_grids
+
+
+
+
+def scan_for_non_monotone_sections(grid: np.ndarray):
+
+    non_monotone_sweep_lines = []
+    non_monotone_in_x = False
+    non_monotone_in_y = False
+
+    # go through all horizontal sweep lines:
+    p1_x = 0
+    p2_x = len(grid.shape[1])
+    for y in range(grid.shape[0]):
+        intersection_points = []
+        # check intersection with grid by going through the sweep line and check for 1-->0 or 0-->1 transitions
+        val = 0
+        for x in range(grid.shape[1]):
+            cell_val = grid[y][x]
+            if cell_val != val:
+                # transition detected
+                intersection_points.append( (y,x) )
+                val = cell_val
+        
+        #print(f"leng: {len(intersection_points)}")
+        if len(intersection_points) > 2:
+            # Sweep line is does not pass criteria! (its intersecting non-monotone sections)
+            sweep_line = LineString([ (p1_x, y), (p2_x, y) ])
+            gap_severity = 0
+            for i in range(1, len(intersection_points)-1, 2):
+                start_pt = intersection_points[i]
+                end_pt = intersection_points[i+1]
+                gap_severity += abs(end_pt[0] - start_pt[0]) # y coordinate difference
+                pass
+
+            non_monotone_sweep_lines.append( (sweep_line, intersection_points, gap_severity) )
+            non_monotone_in_y = True
+
+
+    # go through all vertical sweep lines:
+    p1_y = 0
+    p2_y = len(grid.shape[0])
+    for x in range(grid.shape[1]):
+        intersection_points = []
+        # check intersection with grid by going through the sweep line and check for 1-->0 or 0-->1 transitions
+        val = 0
+        for y in range(grid.shape[0]):
+            cell_val = grid[y][x]
+            if cell_val != val:
+                # transition detected
+                intersection_points.append( (y,x) )
+                val = cell_val
+        
+        #print(f"leng: {len(intersection_points)}")
+        if len(intersection_points) > 2:
+            # Sweep line is does not pass criteria! (its intersecting non-monotone sections)
+            sweep_line = LineString([ (x, p1_y), (x, p2_y) ])
+            gap_severity = 0
+            for i in range(1, len(intersection_points)-1, 2):
+                start_pt = intersection_points[i]
+                end_pt = intersection_points[i+1]
+                gap_severity += abs(end_pt[1] - start_pt[1]) # x coordinate difference
+
+            non_monotone_sweep_lines.append( (sweep_line, intersection_points, gap_severity) )
+            non_monotone_in_x = True
+
+    return non_monotone_sweep_lines, non_monotone_in_x, non_monotone_in_y
 
 
 def main(args=None) -> None:
@@ -44,8 +219,6 @@ def main(args=None) -> None:
 
     # go though each "candidate sweep line" and check for non-monotone sections
 
-    all_sub_grids = []
-
     grid_queue = queue() # queue of grid/subgrids to be processed
     grid_queue.append(fly_grid)
 
@@ -53,69 +226,7 @@ def main(args=None) -> None:
 
         grid = grid_queue.popleft()
 
-        non_monotone_sweep_lines = []
-
-        # go through all horizontal sweep lines:
-        p1_x = 0
-        p2_x = len(x_axis_coords)
-
-        non_monotone_in_y = False
-        non_monotone_in_x = False
-
-        for y in range(grid.shape[0]):
-            intersection_points = []
-            # check intersection with grid by going through the sweep line and check for 1-->0 or 0-->1 transitions
-            val = 0
-            for x in range(grid.shape[1]):
-                cell_val = grid[y][x]
-                if cell_val != val:
-                    # transition detected
-                    intersection_points.append( (y,x) )
-                    val = cell_val
-            
-            #print(f"leng: {len(intersection_points)}")
-            if len(intersection_points) > 2:
-                # Sweep line is does not pass criteria! (its intersecting non-monotone sections)
-                sweep_line = LineString([ (p1_x, y), (p2_x, y) ])
-                gap_severity = 0
-                for i in range(1, len(intersection_points)-1, 2):
-                    start_pt = intersection_points[i]
-                    end_pt = intersection_points[i+1]
-                    gap_severity += abs(end_pt[0] - start_pt[0]) # y coordinate difference
-                    pass
-
-                non_monotone_sweep_lines.append( (sweep_line, intersection_points, gap_severity) )
-                non_monotone_in_y = True
-
-
-        # go through all vertical sweep lines:
-
-        p1_y = 0
-        p2_y = len(y_axis_coords)
-
-        for x in range(grid.shape[1]):
-            intersection_points = []
-            # check intersection with grid by going through the sweep line and check for 1-->0 or 0-->1 transitions
-            val = 0
-            for y in range(grid.shape[0]):
-                cell_val = grid[y][x]
-                if cell_val != val:
-                    # transition detected
-                    intersection_points.append( (y,x) )
-                    val = cell_val
-            
-            #print(f"leng: {len(intersection_points)}")
-            if len(intersection_points) > 2:
-                # Sweep line is does not pass criteria! (its intersecting non-monotone sections)
-                sweep_line = LineString([ (x, p1_y), (x, p2_y) ])
-                gap_severity = 0
-                for i in range(1, len(intersection_points)-1, 2):
-                    start_pt = intersection_points[i]
-                    end_pt = intersection_points[i+1]
-                    gap_severity += abs(end_pt[1] - start_pt[1]) # x coordinate difference
-
-                non_monotone_sweep_lines.append( (sweep_line, intersection_points, gap_severity) )
-                non_monotone_in_x = True
+        non_monotone_sweep_lines, non_monotone_in_x, non_monotone_in_y = scan_for_non_monotone_sections(grid)
 
         # Check if "polygon" is irregular (i.e., non–monotone in both directions)
         if non_monotone_in_x and non_monotone_in_y:
@@ -130,24 +241,12 @@ def main(args=None) -> None:
                     max_gap_severity = gap_severity
                     selected_sweep_line = sweep_line
 
-            # Split the grid along the selected sweep line into two sub-grids
-            if selected_sweep_line.coords[0][0] == selected_sweep_line.coords[1][0]:  # horizontal line (if p1 y matches p2 y)
-                split_y = int(selected_sweep_line.coords[0][1]) # "height"(y) if horizontal line
-                # create sub-grids (same dimensions as original grid, but with 0s outside the sub-area
-                sub_grid1 = np.copy(grid)
-                sub_grid1[split_y:,:] = 0
-                sub_grid2 = np.copy(grid)
-                sub_grid2[:split_y,:] = 0
-            else:  # vertical line
-                split_x = int(selected_sweep_line.coords[0][0]) # "width"(x) if vertical line
-                sub_grid1 = np.copy(grid)
-                sub_grid1[:, split_x:] = 0
-                sub_grid2 = np.copy(grid)
-                sub_grid2[:, :split_x] = 0
+            # Split grid along selected sweep line
+            sub_grids = split_grid_along_sweep_line(grid, selected_sweep_line)
 
             # add sub-grids to queue for further processing
-            grid_queue.append(sub_grid1)
-            grid_queue.append(sub_grid2)
+            for sub_grid in sub_grids:
+                grid_queue.append(sub_grid)
 
         else:
             print("Polygon is regular (monotone in at least one direction)")

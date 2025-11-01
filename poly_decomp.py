@@ -7,14 +7,15 @@ from shapely.geometry import Polygon, Point, LineString
 import numpy as np
 import math
 from collections import deque as queue
-from custom_cell_tools import dx_4way, dy_4way
+from custom_cell_tools import dx_4way, dy_4way, dx_8way, dy_8way
+import matplotlib.pyplot as plt
 
 # reuse code from offline_phase.py
 from offline_phase import create_grid_from_polygon_and_noflyzones
 
 
 DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
-CAMERA_COVERAGE_LEN = 4 # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
+CAMERA_COVERAGE_LEN = 1 # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
 
 
 # NOTE: All indexing of grids is done as (y,x) - to match lat, lon convention
@@ -22,6 +23,12 @@ CAMERA_COVERAGE_LEN = 4 # meters. coverage of the drone camera in the narrowest 
 
 
 # TODO er ikke sikker på "regular" og "irregular" er defineret korrekt .. men det er sådan de kalder det i artiklen?
+
+
+n_neighbors = 8
+dx_nway = dx_8way
+dy_nway = dy_8way
+
 
 def are_grids_adjacent(grid1: np.ndarray, grid2: np.ndarray) -> bool:
     # Both grids are same size. they either have 1 or 0. we want to check if they share a common boundary segment of 1s
@@ -36,12 +43,12 @@ def are_grids_adjacent(grid1: np.ndarray, grid2: np.ndarray) -> bool:
 
             if grid1[y][x] == 1:
 
-                # check 4-neighbors in grid2
-                for direction in range(4):
+                # check neighbors in grid2
+                for direction in range(n_neighbors):
 
                     # adjacent cell coordinates
-                    adjx = x + dx_4way[direction]
-                    adjy = y + dy_4way[direction]
+                    adjx = x + dx_nway[direction]
+                    adjy = y + dy_nway[direction]
 
                     # bounds check
                     if (adjx < 0 or adjy < 0 or adjx >= grid2.shape[1] or adjy >= grid2.shape[0]):
@@ -141,10 +148,13 @@ def split_grid_with_disconnected_sections(grid: np.ndarray):
     # check for disconnected sections in the grid and split into multiple sub-grids if found
 
     disconnected_sections = []
+    
+    print("BURGER")
 
     for y in range(grid.shape[0]):
         for x in range(grid.shape[1]):
             if grid[y][x] == 1:
+                print(f"SUSHI {x}, {y}")
                 # found a flyable cell, start flood fill to find all connected cells
                 visited = np.zeros_like(grid)
                 to_visit = queue()
@@ -155,10 +165,10 @@ def split_grid_with_disconnected_sections(grid: np.ndarray):
                 while(len(to_visit) > 0):
                     cy, cx = to_visit.popleft()
 
-                    # check 4-neighbors
-                    for direction in range(4):
-                        adjx = cx + dx_4way[direction]
-                        adjy = cy + dy_4way[direction]
+                    # check neighbors
+                    for direction in range(n_neighbors):
+                        adjx = cx + dx_nway[direction]
+                        adjy = cy + dy_nway[direction]
 
                         # bounds check
                         if (adjx < 0 or adjy < 0 or adjx >= grid.shape[1] or adjy >= grid.shape[0]):
@@ -192,14 +202,10 @@ def split_grid_along_sweep_line(grid: np.ndarray, sweep_line: LineString):
 
     sub_grids = []
 
-    # rows, cols = grid.shape
-
     # (remember, shapely LineString coords are in (x,y) format, while our grid is in (y,x) format)
 
     # Split the grid along the selected sweep line into two sub-grids
     if sweep_line.coords[0][1] == sweep_line.coords[1][1]:  # horizontal line (if p1 y matches p2 y)
-        # if rows < 2:
-        #     return []
         split_y = int(sweep_line.coords[0][1]) # "height"(y) if horizontal line
         # create sub-grids (same dimensions as original grid, but with 0s outside the sub-area
         sub_grid1 = np.copy(grid)
@@ -207,8 +213,6 @@ def split_grid_along_sweep_line(grid: np.ndarray, sweep_line: LineString):
         sub_grid2 = np.copy(grid)
         sub_grid2[:split_y,:] = 0
     else:  # vertical line
-        # if cols < 2:
-        #     return []
         split_x = int(sweep_line.coords[0][0]) # "width"(x) if vertical line
         sub_grid1 = np.copy(grid)
         sub_grid1[:, split_x:] = 0
@@ -216,57 +220,21 @@ def split_grid_along_sweep_line(grid: np.ndarray, sweep_line: LineString):
         sub_grid2[:, :split_x] = 0
 
 
+    sub_grids.append(sub_grid1)
+    sub_grids.append(sub_grid2)
+    # TODO indkommenter når det andet optil virker (og fjern det lige ovenfor)
     # If any of the sub-grids have disconnected sections, split them further
-    sub_grids.extend(split_grid_with_disconnected_sections(sub_grid1))
-    sub_grids.extend(split_grid_with_disconnected_sections(sub_grid2))
+    # sub_grids.extend(split_grid_with_disconnected_sections(sub_grid1))
+    # sub_grids.extend(split_grid_with_disconnected_sections(sub_grid2))
 
-    #     filtered_sub_grids = []
-#     for sub_grid in sub_grids:
-#         if sub_grid.any() and not np.array_equal(sub_grid, grid):
-#             filtered_sub_grids.append(sub_grid)
+    # make sure we dont return the original grid as a sub-grid
+    # TODO find ud af hvorfor det her er krævet.. er de tvirkelig the root cause vi løser her?
+    filtered_sub_grids = []
+    for sub_grid in sub_grids:
+        if not np.array_equal(sub_grid, grid):
+            filtered_sub_grids.append(sub_grid)
 
-    return sub_grids
-
-
-
-# def split_grid_along_sweep_line(grid: np.ndarray, sweep_line: LineString):
-
-#     sub_grids = []
-
-#     rows, cols = grid.shape
-
-#     # (remember, shapely LineString coords are in (x,y) format, while our grid is in (y,x) format)
-
-#     # Split the grid along the selected sweep line into two sub-grids
-#     if sweep_line.coords[0][1] == sweep_line.coords[1][1]:  # horizontal line (if p1 y matches p2 y)
-#         if rows < 2:
-#             return []
-#         split_y = max(1, min(int(round(sweep_line.coords[0][1])), rows - 1))
-#         # create sub-grids (same dimensions as original grid, but with 0s outside the sub-area
-#         sub_grid1 = np.copy(grid)
-#         sub_grid1[split_y:, :] = 0
-#         sub_grid2 = np.copy(grid)
-#         sub_grid2[:split_y, :] = 0
-#     else:  # vertical line
-#         if cols < 2:
-#             return []
-#         split_x = max(1, min(int(round(sweep_line.coords[0][0])), cols - 1))
-#         sub_grid1 = np.copy(grid)
-#         sub_grid1[:, split_x:] = 0
-#         sub_grid2 = np.copy(grid)
-#         sub_grid2[:, :split_x] = 0
-
-#     # If any of the sub-grids have disconnected sections, split them further
-#     for candidate in (sub_grid1, sub_grid2):
-#         sub_grids.extend(split_grid_with_disconnected_sections(candidate))
-
-#     filtered_sub_grids = []
-#     for sub_grid in sub_grids:
-#         if sub_grid.any() and not np.array_equal(sub_grid, grid):
-#             filtered_sub_grids.append(sub_grid)
-
-#     return filtered_sub_grids
-
+    return filtered_sub_grids
 
 
 
@@ -382,8 +350,16 @@ def main(args=None) -> None:
                     max_gap_severity = gap_severity
                     selected_sweep_line = sweep_line
 
+            print(f"Selected sweep line for splitting: {selected_sweep_line}")
+
             # Split grid along selected sweep line
             sub_grids = split_grid_along_sweep_line(grid, selected_sweep_line)
+
+            # Print sub-grids visually for debugging
+            for i, sub_grid in enumerate(sub_grids):
+                plt.imshow(sub_grid, cmap='Greys', origin='lower', alpha=0.5)
+                plt.title(f"Sub-grid {i+1}")
+                plt.show()
 
             print(f"Split grid into {len(sub_grids)} sub-grids along sweep line")
 
@@ -399,13 +375,12 @@ def main(args=None) -> None:
 
     #print(f"Selected sweep line for splitting: {selected_sweep_line} with gap severity {max_gap_severity}")
 
-    # Plot grid and sweep lines for visualization:
-    import matplotlib.pyplot as plt
-    plt.imshow(fly_grid, cmap='Greys', origin='lower')
-    # for sweep_line, points in non_monotone_sweep_lines:
-    #     x_coords = [p[1] for p in points]
-    #     plt.plot(x_coords, [sweep_line.y] * len(x_coords), color='red')
-    plt.show()
+    # # Plot grid and sweep lines for visualization:
+    # plt.imshow(fly_grid, cmap='Greys', origin='lower')
+    # # for sweep_line, points in non_monotone_sweep_lines:
+    # #     x_coords = [p[1] for p in points]
+    # #     plt.plot(x_coords, [sweep_line.y] * len(x_coords), color='red')
+    # plt.show()
 
     # # Now process the non-monotone sweep lines to find the actual non-monotone sections
     # non_monotone_sections = []

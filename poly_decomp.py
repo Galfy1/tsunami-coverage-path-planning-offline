@@ -355,11 +355,18 @@ def main(args=None) -> None:
             # Split grid along selected sweep line
             sub_grids = split_grid_along_sweep_line(grid, selected_sweep_line)
 
+            # Print grid to process visually for debugging
+            plt.imshow(grid, cmap='Greys', origin='lower', alpha=0.5)
+            plt.title("Original grid to split")
+            plt.show()
+
             # Print sub-grids visually for debugging
             for i, sub_grid in enumerate(sub_grids):
                 plt.imshow(sub_grid, cmap='Greys', origin='lower', alpha=0.5)
                 plt.title(f"Sub-grid {i+1}")
                 plt.show()
+
+            # TODO ISSUE. Når den (anden gang) skal process top griddet, finde den samme sweel line som tidligere.. fordi det er den samme pixels med stor gap (fordi den evaller i midten af pixelene - aka det noget med hvor man splitter? og det er over eller under.. men det skal kunne virke i begge retninger..)
 
             print(f"Split grid into {len(sub_grids)} sub-grids along sweep line")
 

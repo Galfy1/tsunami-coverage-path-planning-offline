@@ -14,7 +14,8 @@ import matplotlib.pyplot as plt
 from offline_phase import create_grid_from_polygon_and_noflyzones
 
 
-DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
+#DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
+DRONE_START = (56.1672192716924, 10.152786411345) # for "paper_recreate.poly"
 CAMERA_COVERAGE_LEN = 1 # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
 
 
@@ -331,7 +332,7 @@ def main(args=None) -> None:
 
     # Note: polygons can for example for created in Mission Planner and exported as .poly files
     polygon_coords = []
-    with open('irregular_poly.poly','r') as f: 
+    with open('paper_recreate.poly','r') as f: 
         reader = csv.reader(f,delimiter=' ')
         for row in reader:
             if(row[0] == '#saved'): continue # skip header

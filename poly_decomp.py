@@ -14,9 +14,10 @@ import matplotlib.pyplot as plt
 from offline_phase import create_grid_from_polygon_and_noflyzones
 
 
-#DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
-DRONE_START = (56.1672192716924, 10.152786411345) # for "paper_recreate.poly"
+DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
+#DRONE_START = (56.1672192716924, 10.152786411345) # for "paper_recreate.poly"
 CAMERA_COVERAGE_LEN = 1 # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
+
 
 
 # NOTE: All indexing of grids is done as (y,x) - to match lat, lon convention
@@ -48,6 +49,22 @@ dy_nway = dy_8way
 #                   For dem er det ikke et problem... for igen... i uddeler ydre polygons til droner, ikke indre! og der er med stor sansynlighed nok ydre polygons (så alle droner kan aktiveres)
 #                       MEN VORES APPROACH.. er det et reelt problem.. der skal løses TODO
                                 # ALTSÅ: at vi højst sandsyngligt har flere droner en partiitons.. og derfor low UAV utilization.
+            # POTENTIEL LØSNING: aner ikke om den er god... men stop culling merging når den har et subgrid antal der matcher drone antal... aka ikke vent den til er helt done
+                                # og hvis den får under det, så tag den tidligere subgrid pack (og så får vi nok flere partinals end droner, men det kan vi fikse med deres path halløj)
+                                # (hvis man skal konbinere partitions, så kombiner dem med mindste area)
+                                # (MEN HUSK: ikke bare merge dem... hold dem adskilt, men brug deres metode til at cover begge.. så de får individuelle lawnmover path retninger der passer bedste (og med mindst overgange mellem dem))
+                    # PROBLEMER MED DEN LØSNING: hvis man bare stopper culling merging tidligt, så kan partionals have meget stor forskel i area
+            # EN ANDEN POTETNTEL LØSNIGN (måske bedre): lad culling merging køre færdig.. og så simpel bare split de største partionals op indtil vi har nok partionals til alle droner
+                            # hver partition vil stadig være "regular" (monotone i mindst en retning)
+            # måske nævn begge løsninger i rapporten. og hvorfor nummer 2 er bedre og valgt
+            #   så efter culling merging har vi 3 scenarier:
+                    # antal partian matcher uav count: alt godt.
+                    # antal partian mindre end uav count: split de største partian op indtil match
+                    # antal partian større end uav count: assign flere partians til nogle uavs (basret på area) og brug deres halløj i paper til at finde bedste patch når 1 drone skal cover over flere partions.
+        
+        
+#UAV_COUNT_HMMM = 10
+
 
 
 def are_grids_adjacent(grid1: np.ndarray, grid2: np.ndarray) -> bool:
@@ -167,7 +184,17 @@ def culling_merging(all_sub_grids):
                 new_sub_grids_pack.append(sub_grid)
                 ignore_grids.append(sub_grid)
 
-        # Keep going through the new sub-grids pack until no merges happen
+
+
+        #  Stop prematurely if we have equal or less sub-grids than UAVs (to avoid low UAV utilization)
+        # if len(new_sub_grids_pack) <= UAV_COUNT_HMMM:
+        #     # if we have less sub-grids than UAVs, keep the previous pack instead
+        #     all_sub_grids_after_culling = sub_grids_pack.copy()
+        #     print("999. subgrids len:", len(sub_grids_pack))
+        #     break
+
+
+
         if merge_happened:
             sub_grid_pack_queue.append(new_sub_grids_pack)
             print("777. subgrids len:", len(new_sub_grids_pack))
@@ -351,7 +378,7 @@ def main(args=None) -> None:
 
     # Note: polygons can for example for created in Mission Planner and exported as .poly files
     polygon_coords = []
-    with open('paper_recreate.poly','r') as f: 
+    with open('irregular_poly.poly','r') as f: 
         reader = csv.reader(f,delimiter=' ')
         for row in reader:
             if(row[0] == '#saved'): continue # skip header

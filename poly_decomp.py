@@ -54,7 +54,7 @@ dy_nway = dy_8way
                                 # (hvis man skal konbinere partitions, så kombiner dem med mindste area)
                                 # (MEN HUSK: ikke bare merge dem... hold dem adskilt, men brug deres metode til at cover begge.. så de får individuelle lawnmover path retninger der passer bedste (og med mindst overgange mellem dem))
                     # PROBLEMER MED DEN LØSNING: hvis man bare stopper culling merging tidligt, så kan partionals have meget stor forskel i area
-            # EN ANDEN POTETNTEL LØSNIGN (måske bedre): lad culling merging køre færdig.. og så simpel bare split de største partionals op indtil vi har nok partionals til alle droner
+            # EN ANDEN POTETNTEL LØSNIGN (måske bedre): lad culling merging køre færdig.. og så simpel bare split de største partionals op indtil vi har nok partionals til alle droner (split så ca samme area i hver)
                             # hver partition vil stadig være "regular" (monotone i mindst en retning)
             # måske nævn begge løsninger i rapporten. og hvorfor nummer 2 er bedre og valgt
             #   så efter culling merging har vi 3 scenarier:

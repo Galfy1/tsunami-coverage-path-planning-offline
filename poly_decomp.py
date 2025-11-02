@@ -229,10 +229,11 @@ def split_grid_along_sweep_line(grid: np.ndarray, sweep_line: LineString):
 
     # make sure we dont return the original grid as a sub-grid
     # TODO find ud af hvorfor det her er krævet.. er de tvirkelig the root cause vi løser her?
-    filtered_sub_grids = []
-    for sub_grid in sub_grids:
-        if not np.array_equal(sub_grid, grid):
-            filtered_sub_grids.append(sub_grid)
+    # filtered_sub_grids = []
+    # for sub_grid in sub_grids:
+    #     if not np.array_equal(sub_grid, grid):
+    #         filtered_sub_grids.append(sub_grid)
+    return sub_grids
 
     return filtered_sub_grids
 
@@ -326,6 +327,8 @@ def main(args=None) -> None:
 
     regular_grids_result = []
 
+    banned_sweep_lines = [] # to avoid selecting the same sweep line multiple times TODO
+
     # go though each "candidate sweep line" and check for non-monotone sections
 
     grid_queue = queue() # queue of grid/subgrids to be processed
@@ -346,27 +349,37 @@ def main(args=None) -> None:
             max_gap_severity = -1
             selected_sweep_line = None
             for sweep_line, _ , gap_severity in non_monotone_sweep_lines:
+                if sweep_line in banned_sweep_lines:
+                    continue # skip already used sweep lines
                 if gap_severity > max_gap_severity:
                     max_gap_severity = gap_severity
                     selected_sweep_line = sweep_line
 
+            if selected_sweep_line is None:
+                print("No valid sweep line found for splitting (all previously used). Stopping further decomposition.")
+                regular_grids_result.append(grid)
+                continue
+
+            banned_sweep_lines.append(selected_sweep_line)
             print(f"Selected sweep line for splitting: {selected_sweep_line}")
 
             # Split grid along selected sweep line
             sub_grids = split_grid_along_sweep_line(grid, selected_sweep_line)
 
-            # Print grid to process visually for debugging
-            plt.imshow(grid, cmap='Greys', origin='lower', alpha=0.5)
-            plt.title("Original grid to split")
-            plt.show()
+            # # Print grid to process visually for debugging
+            # plt.imshow(grid, cmap='Greys', origin='lower', alpha=0.5)
+            # plt.title("Original grid to split")
+            # plt.show()
 
-            # Print sub-grids visually for debugging
-            for i, sub_grid in enumerate(sub_grids):
-                plt.imshow(sub_grid, cmap='Greys', origin='lower', alpha=0.5)
-                plt.title(f"Sub-grid {i+1}")
-                plt.show()
+            # # Print sub-grids visually for debugging
+            # for i, sub_grid in enumerate(sub_grids):
+            #     plt.imshow(sub_grid, cmap='Greys', origin='lower', alpha=0.5)
+            #     plt.title(f"Sub-grid {i+1}")
+            #     plt.show()
 
             # TODO ISSUE. Når den (anden gang) skal process top griddet, finde den samme sweel line som tidligere.. fordi det er den samme pixels med stor gap (fordi den evaller i midten af pixelene - aka det noget med hvor man splitter? og det er over eller under.. men det skal kunne virke i begge retninger..)
+            # Når det er løst, kan vi måske også fjerne filtered_sub_grids[] halløjet igen.
+            # måske kan man løse det med: en ban liste af sweep lines der allerede er taget tidligere.
 
             print(f"Split grid into {len(sub_grids)} sub-grids along sweep line")
 
@@ -378,7 +391,27 @@ def main(args=None) -> None:
             # store the regular grid
             regular_grids_result.append(grid)
 
+    # PLOTTING MADE USING AI:
     print (f"Decomposition resulted in {len(regular_grids_result)} regular sub-polygons")
+    # Plot all the regular sub-polygons with at most 5 subplots per row (multiple rows allowed)
+    n = len(regular_grids_result)
+    if n > 0:
+        max_cols = 5
+        ncols = min(max_cols, n)
+        nrows = math.ceil(n / ncols)
+        fig, axs = plt.subplots(nrows, ncols, figsize=(5 * ncols, 5 * nrows))
+        axs = np.array(axs).reshape(-1)  # flatten to 1D for easy indexing
+
+        for i, sub_grid in enumerate(regular_grids_result):
+            axs[i].imshow(sub_grid, cmap='Greys', origin='lower', alpha=0.5)
+            axs[i].set_title(f"Regular sub-grid {i+1}")
+
+        # Hide any unused subplot axes
+        for j in range(n, nrows * ncols):
+            axs[j].axis('off')
+
+        plt.tight_layout()
+        plt.show()
 
     #print(f"Selected sweep line for splitting: {selected_sweep_line} with gap severity {max_gap_severity}")
 

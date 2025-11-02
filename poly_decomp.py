@@ -31,6 +31,25 @@ dx_nway = dx_8way
 dy_nway = dy_8way
 
 
+# TODO.. deres approach er at (forklar i rapporten. og hvordan vores er andereldes):
+#                         computer vision terrain i forskellige polygons (ydre poly) arcoing to terrain type
+#                         For hver polygon, brug alt det halløj her i filen til at partiion den ind (inder poly)
+#                         find bedste path, der connected dem bedst, så hver polygon har 1 lang path
+#                         Assign hver ydre poly til en UAV. 
+#                               AKA: den deler ikke indre polygons mellem uavs...
+# 
+#                      Hmmm... hvad vi måske kan gøre! (igen.. vi har bare based den på deres.. vi laver ikke dikrete deres)
+#                           Partion et polygon op (hvad jeg tidligere kaldre "indre poly")
+#                           Brug antallen af droner til at del partitions op. 
+#                               HVIS, der er flere partitions end droner, så del assign partitnes ud fra deres area, så det er ca lige fordel
+#                               AKA en/flere droner får flere partions på samme tid! og så kan man bruge deres halløj i paperd til at finde den bedste path der connecter dem
+
+#       HELE DET DER HALLØJ MED AT HVIS MAN HAR FLERE DRONER EN PARTITIONS:
+#                   For dem er det ikke et problem... for igen... i uddeler ydre polygons til droner, ikke indre! og der er med stor sansynlighed nok ydre polygons (så alle droner kan aktiveres)
+#                       MEN VORES APPROACH.. er det et reelt problem.. der skal løses TODO
+                                # ALTSÅ: at vi højst sandsyngligt har flere droner en partiitons.. og derfor low UAV utilization.
+
+
 def are_grids_adjacent(grid1: np.ndarray, grid2: np.ndarray) -> bool:
     # Both grids are same size. they either have 1 or 0. we want to check if they share a common boundary segment of 1s
 

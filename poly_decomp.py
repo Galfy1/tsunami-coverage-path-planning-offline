@@ -476,9 +476,9 @@ def main(args=None) -> None:
 
         for i, sub_grid in enumerate(culling_merged_grids):
             # Plot original grid as light blue background
-            axs[i].imshow(fly_grid, cmap='Blues', origin='lower', alpha=0.25, vmin=0, vmax=1)
+            axs[i].imshow(fly_grid, cmap='Blues', origin='lower', alpha=1, vmin=0, vmax=1)
             # Overlay the sub-grid in orange/red
-            axs[i].imshow(sub_grid, cmap='Oranges', origin='lower', alpha=0.9, vmin=0, vmax=1)
+            axs[i].imshow(sub_grid, cmap='Oranges', origin='lower', alpha=0.8, vmin=0, vmax=1)
             axs[i].set_title(f"Regular sub-grid {i+1} (overlay on original)")
 
         # Hide any unused subplot axes

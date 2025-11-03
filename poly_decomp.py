@@ -284,76 +284,139 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
 
     y_move_direction = -1 if 'n' in start_corner else 1
     x_move_direction = 1 if 'w' in start_corner else -1
+    front_move_direction = y_move_direction if direction == "horizontal" else x_move_direction
+    lawnmower_state = 'sweep_in_one_direction' 
+
+    # STATE MACHINE FLOW: 
+    #       Full sweep in "front" direction --> Full sweep "back" in other direction --> Are all 1's from grid in path:
+    #                                                                                                                   YES: we are done
+    #                                                                                                                   NO: move to closest 1 cell in grid --> repeat the flow from start
 
     if direction == "horizontal":
 
-        # Loop to go all all the way in 1 y direction:
+        # State machine, to complete the full lawnmower path:
         while True:
 
-            # move horizontally until hitting a boundary:
-            while (0 <= x + x_move_direction < grid.shape[1]) and (grid[y][x + x_move_direction] == 1): # left part: break if hitting outer grid limits. right part: break if hitting a 0
-                x += x_move_direction # move along x
-                path.append((y,x)) # create path
+            if lawnmower_state == 'sweep_in_one_direction':
 
-            # make sure the current row is fully covered before moving to next row
-            # (done by moving back the other way untill hitting boundary or already covered cell)
-            x_move_direction = -1 * x_move_direction # (we dont count this as a turn, since it might be the only direction the uav can move)
-            while (0 <= x + x_move_direction < grid.shape[1]) and (grid[y][x + x_move_direction] == 1): # left part: break if hitting outer grid limits. right part: break if hitting a 0
-                # if we hit a cell already in path, we are done with this row:
-                if (y, x + x_move_direction) in path: 
+                # move horizontally until hitting a boundary:
+                while (0 <= x + x_move_direction < grid.shape[1]) and (grid[y][x + x_move_direction] == 1): # left part: break if hitting outer grid limits. right part: break if hitting a 0
+                    x += x_move_direction # move along x
+                    path.append((y,x)) # create path
+
+                # make sure the current row is fully covered before moving to next row
+                # (done by moving back the other way untill hitting boundary or already covered cell)
+                x_move_direction = -1 * x_move_direction # (we dont count this as a turn, since it might be the only direction the uav can move)
+                while (0 <= x + x_move_direction < grid.shape[1]) and (grid[y][x + x_move_direction] == 1): # left part: break if hitting outer grid limits. right part: break if hitting a 0
+                    # if we hit a cell already in path, we are done with this row:
+                    if (y, x + x_move_direction) in path: 
+                        # WE ARE DONE WITH THIS SWEEP
+                        if y_move_direction == front_move_direction:
+                            y_move_direction = -1 * y_move_direction # change front direction for next sweep
+                        else:  # we have done sweeping in both directions
+                            lawnmower_state = 'check_for_completion'
+                            continue
+                    # else, keep moving
+                    x += x_move_direction # move along x
+                    path.append((y,x)) # create path
+
+
+                # We now cant move futher in x! we need to go to next row (y) (in the same way they do it in the figures in the paper):
+
+                # first, find the first cell in the next row (thats closets to the current cell)
+                next_y = y + y_move_direction
+                if not (0 <= next_y < grid.shape[0]):
+                    # out of bounds - we are done
+                    if y_move_direction == front_move_direction:
+                        y_move_direction = -1 * y_move_direction # change front direction for next sweep
+                    else:  # we have done sweeping in both directions
+                        lawnmower_state = 'check_for_completion'
+                        continue
+
+
+                # Go through the next row to find all border cells (transitions from 0 to 1 or 1 to 0)
+                next_row_border_cells = []
+                val = 0
+                for x_temp in range(grid.shape[1]):
+                    cell_val = grid[next_y][x_temp]
+                    if cell_val != val:
+                        # transition detected
+                        # find the '1' cell in the transition
+                        if cell_val == 1:
+                            next_row_border_cells.append( (next_y, x_temp) )
+                        elif cell_val == 0:
+                            next_row_border_cells.append( (next_y, x_temp - 1) ) # (remember, we are going from "left to right", so the previous cell is the 1)
+                        val = cell_val
+
+                # choose the next cell thats closest to current x
+                min_dist = float('inf')
+                next_cell = None
+                for cell in next_row_border_cells:
+                    dist = abs(cell[1] - x)
+                    if dist < min_dist:
+                        min_dist = dist
+                        next_cell = cell
+                if next_cell is None:
+                    # no valid next cell found - we are done
+                    if y_move_direction == front_move_direction:
+                        y_move_direction = -1 * y_move_direction # change front direction for next sweep
+                    else: # we have done sweeping in both directions
+                        lawnmower_state = 'check_for_completion'
+                        continue
+
+                if (y, x) == (74, 21):
+                    print(f"next_cell: {next_cell}")
+                    print(f"min_dist: {min_dist}")
+
+                # commit to the chosen next cell
+                x = next_cell[1]
+                y = next_cell[0]
+                path.append((y, x))
+
+                # move the other way back
+                x_move_direction = -1 * x_move_direction
+                turn_count += 1
+
+            elif lawnmower_state == 'check_for_completion':
+
+                # Check if all 1's in grid are covered in path
+                all_covered = True
+                for y_check in range(grid.shape[0]):
+                    for x_check in range(grid.shape[1]):
+                        if grid[y_check][x_check] == 1:
+                            if (y_check, x_check) not in path:
+                                all_covered = False
+                                break
+                    if not all_covered:
+                        break
+
+                if all_covered:
+                    # we are done - exit state machine
                     break
-                # else, keep moving
-                x += x_move_direction # move along x
-                path.append((y,x)) # create path
+                else:
+                    # find the closest uncovered 1 cell in grid
+                    min_dist = float('inf')
+                    next_cell = None
+                    for y_check in range(grid.shape[0]):
+                        for x_check in range(grid.shape[1]):
+                            if grid[y_check][x_check] == 1:
+                                if (y_check, x_check) not in path:
+                                    dist = abs(y_check - y) + abs(x_check - x)
+                                    if dist < min_dist:
+                                        min_dist = dist
+                                        next_cell = (y_check, x_check)
+                    if next_cell is None:
+                        # no valid next cell found.. error 
+                        raise ValueError("No valid next cell found during lawnmower path planning (not all cells in grid are covered yet)")
 
+                    # move to the chosen next cell
+                    y = next_cell[0]
+                    x = next_cell[1]
+                    path.append((y, x))
 
-            # We now cant move futher in x! we need to go to next row (y) (in the same way they do it in the figures in the paper):
-
-            # first, find the first cell in the next row (thats closets to the current cell)
-            next_y = y + y_move_direction
-            if not (0 <= next_y < grid.shape[0]):
-                # out of bounds - we are done
-                break
-
-
-            # Go through the next row to find all border cells (transitions from 0 to 1 or 1 to 0)
-            next_row_border_cells = []
-            val = 0
-            for x_temp in range(grid.shape[1]):
-                cell_val = grid[next_y][x_temp]
-                if cell_val != val:
-                    # transition detected
-                    # find the '1' cell in the transition
-                    if cell_val == 1:
-                        next_row_border_cells.append( (next_y, x_temp) )
-                    elif cell_val == 0:
-                        next_row_border_cells.append( (next_y, x_temp - 1) ) # (remember, we are going from "left to right", so the previous cell is the 1)
-                    val = cell_val
-
-            # choose the next cell thats closest to current x
-            min_dist = float('inf')
-            next_cell = None
-            for cell in next_row_border_cells:
-                dist = abs(cell[1] - x)
-                if dist < min_dist:
-                    min_dist = dist
-                    next_cell = cell
-            if next_cell is None:
-                # no valid next cell found - we are done
-                break
-
-            if (y, x) == (74, 21):
-                print(f"next_cell: {next_cell}")
-                print(f"min_dist: {min_dist}")
-
-            # commit to the chosen next cell
-            x = next_cell[1]
-            y = next_cell[0]
-            path.append((y, x))
-
-            # move the other way back
-            x_move_direction = -1 * x_move_direction
-            turn_count += 1
+                    # reset state machine to do another sweep
+                    y_move_direction = front_move_direction
+                    lawnmower_state = 'sweep_in_one_direction'
 
     elif direction == "vertical":
         # TODO 

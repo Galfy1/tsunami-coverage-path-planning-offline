@@ -214,26 +214,156 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
 
     path = []
     end_cell = None
+    turn_count = 0
 
-    if start_corner == 'nw':
-        pass
-    elif start_corner == 'ne':
-        pass
-    elif start_corner == 'sw':
-        pass
-    elif start_corner == 'se':
-        pass
-    else:
+    # Error check 
+    if direction not in ['horizontal', 'vertical']:
+        raise ValueError("Invalid direction for lawnmower path. Use 'horizontal' or 'vertical'.")
+    if start_corner not in ['nw', 'ne', 'sw', 'se']:
         raise ValueError("Invalid start corner. Use 'nw', 'ne', 'sw', or 'se'.")
+
+
+    # Find the starting cell
+    def find_start_cell(grid, start_corner, direction):
+        rows, cols = grid.shape
+        start_cell = None
+
+        # Determine scan directions
+        y_range = range(rows)
+        x_range = range(cols)
+
+        # Flip ranges based on corner
+
+        if 'n' in start_corner:  # north means start from top (higher y)
+            y_range = range(rows - 1, -1, -1) # (from last row to 0  (start, end, step) (remember, end is exclusive, thats why its -1 for 0))
+        if 's' in start_corner:  # south means start from bottom (lower y)
+            y_range = range(rows)
+
+        if 'w' in start_corner:  # west means start from left
+            x_range = range(cols)
+        if 'e' in start_corner:  # east means start from right
+            x_range = range(cols - 1, -1, -1)
+
+        # Swap scan order depending on direction
+        #       To ensure uav gets all the area on 1 sweep:
+        #           For horizontal dircetion, the starting cell HAS to one of the top/bottom most cells (depeding on start_corner variable)
+        #           For vertical direction, the starting cell HAS to be one of the left/right most cells (depeding on start_corner variable)
+        if direction == 'horizontal':
+            outer, inner = y_range, x_range
+        elif direction == 'vertical':
+            outer, inner = x_range, y_range
+
+        for a in outer:
+            for b in inner:
+                # Depending on direction, interpret (a,b)
+                y, x = (a, b) if direction == 'horizontal' else (b, a)
+                if grid[y][x] == 1:
+                    return (y, x)
+
+        return None
+
+
+    start_cell = find_start_cell(grid, start_corner, direction)
+    if start_cell is None:
+        raise ValueError("No valid starting cell found in the grid.")
     
 
-    # Implement lawnmower path generation
-    if direction == 'horizontal':
-        pass
-    elif direction == 'vertical':
-        pass
-    else:
-        raise ValueError("Invalid direction for lawnmower path. Use 'horizontal' or 'vertical'.")
+    # Generate lawnmower path
+    # rows, cols = grid.shape
+    # y, x = start_cell
+    # path.append( (y, x) )
+    # turn_count = 0
+    # horizontal_move = (direction == 'horizontal')
+    # while True:
+    #     # Move in the current direction until hitting a boundary
+    #     if horizontal_move:
+    #         # Move right
+    #         while x + 1 < cols and grid[y][x + 1] == 1:
+    #             x += 1
+    #             path.append( (y, x) )
+    #         # Try to move down
+    #         if y + 1 < rows and grid[y + 1][x] == 1:
+    #             y += 1
+    #             path.append( (y, x) )
+    #             turn_count += 1
+    #             horizontal_move = False
+    #         else:
+    #             break  # No more moves possible
+    #     else:
+    #         # Move left
+    #         while x - 1 >= 0 and grid[y][x - 1] == 1:
+    #             x -= 1
+    #             path.append( (y, x) )
+    #         # Try to move down
+    #         if y + 1 < rows and grid[y + 1][x] == 1:
+    #             y += 1
+    #             path.append( (y, x) )
+    #             turn_count += 1
+    #             horizontal_move = True
+    #         else:
+    #             break  # No more moves possible
+    
+    # end_cell = (y, x)
+    # path_len = len(path)
+
+
+    y, x = start_cell
+    path.append((y, x))
+
+    y_move_direction = -1 if 'n' in start_corner else 1
+    x_move_direction = -1 if 'w' in start_corner else 1
+
+    horizontal_move = (direction == 'horizontal')
+
+    while True:
+
+        if direction == "horizontal":
+            
+            # move horizontally until hitting a boundary:
+            while (0 <= x + x_move_direction < grid.shape[1]) and (grid[y][x + x_move_direction] == 1): # left part: break if hitting outer grid limits. right part: break if hitting a 0
+                # move along x:
+                x += x_move_direction
+                # create path:
+                path.append((y,x))
+
+            # we now cant move futher in x! we need to go to next row (we do as they do in the figures in the paper):
+            pass
+            
+
+            # move the other way back
+            x_move_direction = not x_move_direction
+
+        elif direction == "vertical":
+            pass
+
+        # Move in the current direction until hitting a boundary
+        # if horizontal_move:
+        #     # Move in x direction
+        #     while 0 <= x + x_move_direction < grid.shape[1] and grid[y][x + x_move_direction] == 1:
+        #         x += x_move_direction
+        #         path.append((y, x))
+        #     # Try to move in y direction
+        #     if 0 <= y + y_move_direction < grid.shape[0] and grid[y + y_move_direction][x] == 1:
+        #         y += y_move_direction
+        #         path.append((y, x))
+        #         turn_count += 1
+        #         horizontal_move = False
+        #     else:
+        #         break  # No more moves possible
+        # else:
+        #     # Move in y direction
+        #     while 0 <= y + x_move_direction < grid.shape[0] and grid[y + x_move_direction][x] == 1:
+        #         y += x_move_direction
+        #         path.append((y, x))
+        #     # Try to move in x direction
+        #     if 0 <= x + y_move_direction < grid.shape[1] and grid[y][x + y_move_direction] == 1:
+        #         x += y_move_direction
+        #         path.append((y, x))
+        #         turn_count += 1
+        #         horizontal_move = True
+        #     else:
+        #         break  # No more moves possible
+
 
     return path, path_len, start_cell, end_cell, turn_count, 
 

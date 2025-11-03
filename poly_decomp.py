@@ -31,6 +31,11 @@ n_neighbors = 8
 dx_nway = dx_8way
 dy_nway = dy_8way
 
+# for debugging
+def _plot_grid(grid: np.ndarray, title: str = "Grid"):
+    plt.imshow(grid, cmap='Greys', origin='lower', alpha=0.5)
+    plt.title(title)
+    plt.show()
 
 # TODO.. deres approach er at (forklar i rapporten. og hvordan vores er andereldes):
 #                         computer vision terrain i forskellige polygons (ydre poly) arcoing to terrain type
@@ -313,9 +318,9 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
     y_move_direction = -1 if 'n' in start_corner else 1
     x_move_direction = -1 if 'w' in start_corner else 1
 
-    horizontal_move = (direction == 'horizontal')
-
     while True:
+
+        print(f"Lawnmover: Current cell: {(y,x)}")
 
         if direction == "horizontal":
             
@@ -324,7 +329,11 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                 # move along x:
                 x += x_move_direction
                 # create path:
+                print(f"moving direction: {x_move_direction}")
                 path.append((y,x))
+                #print(f"Lawnmover: Moved to cell: {(y,x)}")
+
+            print("SNUPPERFLUPPER")
 
             # We now cant move futher in x! we need to go to next row (y) (in the same way they do it in the figures in the paper):
 
@@ -368,7 +377,7 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
             path.append((y, x))
 
             # move the other way back
-            x_move_direction = not x_move_direction
+            x_move_direction = -1 * x_move_direction
             turn_count += 1
 
         elif direction == "vertical":
@@ -378,7 +387,7 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
     end_cell = (y, x)
     path_len = len(path)
 
-    return path, path_len, start_cell, end_cell, turn_count, 
+    return path, path_len, start_cell, end_cell, turn_count
 
 
 
@@ -479,16 +488,7 @@ def split_grid_along_sweep_line(grid: np.ndarray, sweep_line: LineString):
     sub_grids.extend(split_grid_with_disconnected_sections(sub_grid1))
     sub_grids.extend(split_grid_with_disconnected_sections(sub_grid2))
 
-    # make sure we dont return the original grid as a sub-grid
-    # TODO find ud af hvorfor det her er krævet.. er de tvirkelig the root cause vi løser her?
-    # filtered_sub_grids = []
-    # for sub_grid in sub_grids:
-    #     if not np.array_equal(sub_grid, grid):
-    #         filtered_sub_grids.append(sub_grid)
     return sub_grids
-
-    return filtered_sub_grids
-
 
 
 def scan_for_non_monotone_sections(grid: np.ndarray):
@@ -522,7 +522,13 @@ def scan_for_non_monotone_sections(grid: np.ndarray):
                 gap_severity += abs(end_pt[0] - start_pt[0]) # y coordinate difference
                 pass
 
-            non_monotone_sweep_lines.append( (sweep_line, intersection_points, gap_severity) )
+            # because  of the nature of the grid.. we cant split exactly on the line... so we have to split just above or below it.. 
+            # (excessive splitting will be corrected later in the "culling merging" step)
+            above_line = LineString([ (p1_x, y+1), (p2_x, y+1) ])
+            below_line = LineString([ (p1_x, y-1), (p2_x, y-1) ])
+            non_monotone_sweep_lines.append( (above_line, intersection_points, gap_severity) )
+            non_monotone_sweep_lines.append( (below_line, intersection_points, gap_severity) )
+
             non_monotone_in_y = True
 
 
@@ -550,7 +556,11 @@ def scan_for_non_monotone_sections(grid: np.ndarray):
                 end_pt = intersection_points[i+1]
                 gap_severity += abs(end_pt[1] - start_pt[1]) # x coordinate difference
 
-            non_monotone_sweep_lines.append( (sweep_line, intersection_points, gap_severity) )
+            above_line = LineString([ (p1_x, y+1), (p2_x, y+1) ])
+            below_line = LineString([ (p1_x, y-1), (p2_x, y-1) ])
+            non_monotone_sweep_lines.append( (above_line, intersection_points, gap_severity) )
+            non_monotone_sweep_lines.append( (below_line, intersection_points, gap_severity) )
+
             non_monotone_in_x = True
 
     is_irregular = non_monotone_in_x and non_monotone_in_y
@@ -592,6 +602,7 @@ def main(args=None) -> None:
 
         non_monotone_sweep_lines, grid_is_irregular = scan_for_non_monotone_sections(grid)
 
+
         # Check if "polygon" is irregular (i.e., non–monotone in both directions)
         if grid_is_irregular:
             print("Polygon is irregular (non-monotone in both directions)")
@@ -615,8 +626,12 @@ def main(args=None) -> None:
             banned_sweep_lines.append(selected_sweep_line)
             print(f"Selected sweep line for splitting: {selected_sweep_line}")
 
+
             # Split grid along selected sweep line
             sub_grids = split_grid_along_sweep_line(grid, selected_sweep_line)
+
+            if len(regular_grids_result) == 44:
+                _plot_grid(grid, "Original grid to split")
 
             # # Print grid to process visually for debugging
             # plt.imshow(grid, cmap='Greys', origin='lower', alpha=0.5)
@@ -644,11 +659,17 @@ def main(args=None) -> None:
             regular_grids_result.append(grid)
 
 
-    # After processing all grids, perform culling/merging step
+    # After processing all grids, perform culling/merging step # TODO
     culling_merged_grids = culling_merging(regular_grids_result)
+    #culling_merged_grids = regular_grids_result
 
 
+    ## TODO FOR DEBUGGING
+    path, path_len, start_cell, end_cell, turn_count  = lawnmower(culling_merged_grids[2], start_corner='nw', direction='horizontal')
+    print(f"LAWN MOWER PATH LEN: {path_len}, turns: {turn_count}, start: {start_cell}, end: {end_cell}")
 
+
+    ## DEBUGGING END
 
 
     # PLOTTING MADE USING AI:
@@ -675,6 +696,9 @@ def main(args=None) -> None:
 
         plt.tight_layout()
         plt.show()
+
+    
+    
 
     #print(f"Selected sweep line for splitting: {selected_sweep_line} with gap severity {max_gap_severity}")
 

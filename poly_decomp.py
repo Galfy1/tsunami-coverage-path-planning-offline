@@ -326,44 +326,57 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                 # create path:
                 path.append((y,x))
 
-            # we now cant move futher in x! we need to go to next row (we do as they do in the figures in the paper):
-            pass
-            
+            # We now cant move futher in x! we need to go to next row (y) (in the same way they do it in the figures in the paper):
+
+            # first, find the first cell in the next row (thats closets to the current cell)
+            next_y = y + y_move_direction
+            if not (0 <= next_y < grid.shape[0]):
+                # out of bounds - we are done
+                break
+
+            # then, find the two options in that row (leftmost and rightmost 1s)
+            next_cell_option_1 = None
+            next_cell_option_2 = None
+            for x_temp in range (grid.shape[1]):
+                if grid[next_y][x_temp] == 1:
+                    next_cell_option_1 = (next_y, x_temp)
+                    break
+            for x_temp in range (grid.shape[1]-1, -1, -1):
+                if grid[next_y][x_temp] == 1:
+                    next_cell_option_2 = (next_y, x_temp)
+                    break
+
+            # choose the next cell thats closest to current x
+            if next_cell_option_1 is not None and next_cell_option_2 is not None:
+                dist1 = abs(next_cell_option_1[1] - x)
+                dist2 = abs(next_cell_option_2[1] - x)
+                if dist1 <= dist2:
+                    next_cell = next_cell_option_1
+                else:
+                    next_cell = next_cell_option_2
+            elif next_cell_option_1 is not None:
+                next_cell = next_cell_option_1
+            elif next_cell_option_2 is not None:
+                next_cell = next_cell_option_2
+            else:
+                # no valid next cell found - we are done
+                break
+
+            # commit to the chosen next cell
+            x = next_cell[1]
+            y = next_cell[0]
+            path.append((y, x))
 
             # move the other way back
             x_move_direction = not x_move_direction
+            turn_count += 1
 
         elif direction == "vertical":
+            # TODO 
             pass
 
-        # Move in the current direction until hitting a boundary
-        # if horizontal_move:
-        #     # Move in x direction
-        #     while 0 <= x + x_move_direction < grid.shape[1] and grid[y][x + x_move_direction] == 1:
-        #         x += x_move_direction
-        #         path.append((y, x))
-        #     # Try to move in y direction
-        #     if 0 <= y + y_move_direction < grid.shape[0] and grid[y + y_move_direction][x] == 1:
-        #         y += y_move_direction
-        #         path.append((y, x))
-        #         turn_count += 1
-        #         horizontal_move = False
-        #     else:
-        #         break  # No more moves possible
-        # else:
-        #     # Move in y direction
-        #     while 0 <= y + x_move_direction < grid.shape[0] and grid[y + x_move_direction][x] == 1:
-        #         y += x_move_direction
-        #         path.append((y, x))
-        #     # Try to move in x direction
-        #     if 0 <= x + y_move_direction < grid.shape[1] and grid[y][x + y_move_direction] == 1:
-        #         x += y_move_direction
-        #         path.append((y, x))
-        #         turn_count += 1
-        #         horizontal_move = True
-        #     else:
-        #         break  # No more moves possible
-
+    end_cell = (y, x)
+    path_len = len(path)
 
     return path, path_len, start_cell, end_cell, turn_count, 
 

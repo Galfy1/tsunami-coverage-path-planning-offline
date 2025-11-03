@@ -208,8 +208,49 @@ def culling_merging(all_sub_grids):
     return all_sub_grids_after_culling
 
 
+# (also called "boustrophedon path")
+def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizontal'):
+    # implement lawnmower path generation for the given grid
+
+    path = []
+    end_cell = None
+
+    if start_corner == 'nw':
+        pass
+    elif start_corner == 'ne':
+        pass
+    elif start_corner == 'sw':
+        pass
+    elif start_corner == 'se':
+        pass
+    else:
+        raise ValueError("Invalid start corner. Use 'nw', 'ne', 'sw', or 'se'.")
+    
+
+    # Implement lawnmower path generation
+    if direction == 'horizontal':
+        pass
+    elif direction == 'vertical':
+        pass
+    else:
+        raise ValueError("Invalid direction for lawnmower path. Use 'horizontal' or 'vertical'.")
+
+    return path, path_len, start_cell, end_cell, turn_count, 
 
 
+
+def path_plan_swarm(all_sub_grids, uav_count):
+    # Match the number of partitions to the number of UAVs
+    if len(all_sub_grids) < uav_count:
+        # Not enough partitions, need to split some
+        # TODO implement splitting logic
+        pass
+    elif len(all_sub_grids) > uav_count:
+        # Too many partitions, need to merge some
+        # TODO implement merging logic
+        pass
+    return all_sub_grids 
+    
 
 
 def split_grid_with_disconnected_sections(grid: np.ndarray):
@@ -462,6 +503,10 @@ def main(args=None) -> None:
 
     # After processing all grids, perform culling/merging step
     culling_merged_grids = culling_merging(regular_grids_result)
+
+
+
+
 
     # PLOTTING MADE USING AI:
     print (f"Decomposition resulted in {len(culling_merged_grids)} regular sub-polygons")

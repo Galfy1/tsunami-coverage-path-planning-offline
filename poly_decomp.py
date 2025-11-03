@@ -285,7 +285,7 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
     y_move_direction = -1 if 'n' in start_corner else 1
     x_move_direction = 1 if 'w' in start_corner else -1
     front_move_direction = y_move_direction if direction == "horizontal" else x_move_direction
-    lawnmower_state = 'sweep_in_one_direction' 
+    lawnmower_state = 'sweep' # start sweeping
 
     # STATE MACHINE FLOW: 
     #       Full sweep in "front" direction --> Full sweep "back" in other direction --> Are all 1's from grid in path:
@@ -297,7 +297,7 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
         # State machine, to complete the full lawnmower path:
         while True:
 
-            if lawnmower_state == 'sweep_in_one_direction':
+            if lawnmower_state == 'sweep':
 
                 # move horizontally until hitting a boundary:
                 while (0 <= x + x_move_direction < grid.shape[1]) and (grid[y][x + x_move_direction] == 1): # left part: break if hitting outer grid limits. right part: break if hitting a 0
@@ -326,7 +326,7 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                 if not (0 <= next_y < grid.shape[0]):
                     # out of bounds - we are done
                     if y_move_direction == front_move_direction:
-                        y_move_direction = -1 * y_move_direction # change front direction for next sweep
+                        y_move_direction = -1 * y_move_direction # now, sweep against front direction
                     else:  # we have done sweeping in both directions
                         lawnmower_state = 'check_for_completion'
                     continue 
@@ -377,48 +377,53 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                 x_move_direction = -1 * x_move_direction
                 turn_count += 1
 
-            elif lawnmower_state == 'check_for_completion':
-                break
-                # print("Checking for completion...")
+            elif lawnmower_state == 'check_for_completion': 
+                break # TODO 
+                print("Checking for completion...")
 
-                # # Check if all 1's in grid are covered in path
-                # all_covered = True
-                # for y_check in range(grid.shape[0]):
-                #     for x_check in range(grid.shape[1]):
-                #         if grid[y_check][x_check] == 1:
-                #             if (y_check, x_check) not in path:
-                #                 all_covered = False
-                #                 break
-                #     if not all_covered:
-                #         break
+                # Check if all 1's in grid are covered in path
+                all_covered = True
+                for y_check in range(grid.shape[0]):
+                    for x_check in range(grid.shape[1]):
+                        if grid[y_check][x_check] == 1:
+                            if (y_check, x_check) not in path:
+                                all_covered = False
+                                break
+                    if not all_covered:
+                        break
 
-                # if all_covered:
-                #     # we are done - exit state machine
-                #     break
-                # else: # this should happen fairly rarely
-                #     # find the closest uncovered 1 cell in grid
-                #     min_dist = float('inf')
-                #     next_cell = None
-                #     for y_check in range(grid.shape[0]):
-                #         for x_check in range(grid.shape[1]):
-                #             if grid[y_check][x_check] == 1:
-                #                 if (y_check, x_check) not in path:
-                #                     dist = abs(y_check - y) + abs(x_check - x)
-                #                     if dist < min_dist:
-                #                         min_dist = dist
-                #                         next_cell = (y_check, x_check)
-                #     if next_cell is None:
-                #         # no valid next cell found.. error 
-                #         raise ValueError("No valid next cell found during lawnmower path planning (not all cells in grid are covered yet)")
+                if all_covered:
+                    # we are done - exit state machine
+                    break
+                else: # this should happen fairly rarely
+                    lawnmower_state = 'handle_incomplete_coverage'
+                    continue
 
-                #     # move to the chosen next cell
-                #     y = next_cell[0]
-                #     x = next_cell[1]
-                #     path.append((y, x))
+            elif lawnmower_state == 'handle_incomplete_coverage':
 
-                #     # reset state machine to do another sweep
-                #     y_move_direction = front_move_direction
-                #     lawnmower_state = 'sweep_in_one_direction'
+                # find the closest uncovered 1 cell in grid
+                min_dist = float('inf')
+                next_cell = None
+                for y_check in range(grid.shape[0]):
+                    for x_check in range(grid.shape[1]):
+                        if grid[y_check][x_check] == 1:
+                            if (y_check, x_check) not in path:
+                                dist = abs(y_check - y) + abs(x_check - x)
+                                if dist < min_dist:
+                                    min_dist = dist
+                                    next_cell = (y_check, x_check)
+                if next_cell is None:
+                    # no valid next cell found.. error 
+                    raise ValueError("No valid next cell found during lawnmower path planning (not all cells in grid are covered yet)")
+
+                # move to the chosen next cell
+                y = next_cell[0]
+                x = next_cell[1]
+                path.append((y, x))
+
+                # reset state machine to do another sweep
+                y_move_direction = front_move_direction
+                lawnmower_state = 'sweep'
 
     elif direction == "vertical":
         # TODO 
@@ -612,7 +617,7 @@ def main(args=None) -> None:
 
     # Note: polygons can for example for created in Mission Planner and exported as .poly files
     polygon_coords = []
-    with open('irregular_poly.poly','r') as f: 
+    with open('horizontal_nonmono_only.poly','r') as f: 
         reader = csv.reader(f,delimiter=' ')
         for row in reader:
             if(row[0] == '#saved'): continue # skip header
@@ -704,9 +709,9 @@ def main(args=None) -> None:
     #culling_merged_grids = regular_grids_result
 
 
-    ## TODO FOR DEBUGGING
-    path, path_len, start_cell, end_cell, turn_count  = lawnmower(culling_merged_grids[2], start_corner='nw', direction='horizontal')
-    print(f"LAWN MOWER PATH LEN: {path_len}, turns: {turn_count}, start: {start_cell}, end: {end_cell}")
+    # ## TODO FOR DEBUGGING
+    # path, path_len, start_cell, end_cell, turn_count  = lawnmower(culling_merged_grids[2], start_corner='nw', direction='horizontal')
+    # print(f"LAWN MOWER PATH LEN: {path_len}, turns: {turn_count}, start: {start_cell}, end: {end_cell}")
 
 
     ## DEBUGGING END

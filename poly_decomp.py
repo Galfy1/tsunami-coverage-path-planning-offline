@@ -301,6 +301,9 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
 
                 # move horizontally until hitting a boundary:
                 while (0 <= x + x_move_direction < grid.shape[1]) and (grid[y][x + x_move_direction] == 1): # left part: break if hitting outer grid limits. right part: break if hitting a 0
+                    # also...break if hitting a cell already in path:
+                    if (y, x + x_move_direction) in path: 
+                        break
                     x += x_move_direction # move along x
                     path.append((y,x)) # create path
 
@@ -308,14 +311,9 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                 # (done by moving back the other way untill hitting boundary or already covered cell)
                 x_move_direction = -1 * x_move_direction # (we dont count this as a turn, since it might be the only direction the uav can move)
                 while (0 <= x + x_move_direction < grid.shape[1]) and (grid[y][x + x_move_direction] == 1): # left part: break if hitting outer grid limits. right part: break if hitting a 0
-                    # if we hit a cell already in path, we are done with this row:
+                    # also...break if hitting a cell already in path:
                     if (y, x + x_move_direction) in path: 
-                        # WE ARE DONE WITH THIS SWEEP
-                        if y_move_direction == front_move_direction:
-                            y_move_direction = -1 * y_move_direction # change front direction for next sweep
-                        else:  # we have done sweeping in both directions
-                            lawnmower_state = 'check_for_completion'
-                            continue
+                        break
                     # else, keep moving
                     x += x_move_direction # move along x
                     path.append((y,x)) # create path
@@ -331,7 +329,7 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                         y_move_direction = -1 * y_move_direction # change front direction for next sweep
                     else:  # we have done sweeping in both directions
                         lawnmower_state = 'check_for_completion'
-                        continue
+                    continue 
 
 
                 # Go through the next row to find all border cells (transitions from 0 to 1 or 1 to 0)
@@ -352,6 +350,8 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                 min_dist = float('inf')
                 next_cell = None
                 for cell in next_row_border_cells:
+                    if cell in path:
+                        continue # never pick an already covered cell
                     dist = abs(cell[1] - x)
                     if dist < min_dist:
                         min_dist = dist
@@ -362,7 +362,7 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                         y_move_direction = -1 * y_move_direction # change front direction for next sweep
                     else: # we have done sweeping in both directions
                         lawnmower_state = 'check_for_completion'
-                        continue
+                    continue
 
                 if (y, x) == (74, 21):
                     print(f"next_cell: {next_cell}")
@@ -378,45 +378,47 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                 turn_count += 1
 
             elif lawnmower_state == 'check_for_completion':
+                break
+                # print("Checking for completion...")
 
-                # Check if all 1's in grid are covered in path
-                all_covered = True
-                for y_check in range(grid.shape[0]):
-                    for x_check in range(grid.shape[1]):
-                        if grid[y_check][x_check] == 1:
-                            if (y_check, x_check) not in path:
-                                all_covered = False
-                                break
-                    if not all_covered:
-                        break
+                # # Check if all 1's in grid are covered in path
+                # all_covered = True
+                # for y_check in range(grid.shape[0]):
+                #     for x_check in range(grid.shape[1]):
+                #         if grid[y_check][x_check] == 1:
+                #             if (y_check, x_check) not in path:
+                #                 all_covered = False
+                #                 break
+                #     if not all_covered:
+                #         break
 
-                if all_covered:
-                    # we are done - exit state machine
-                    break
-                else:
-                    # find the closest uncovered 1 cell in grid
-                    min_dist = float('inf')
-                    next_cell = None
-                    for y_check in range(grid.shape[0]):
-                        for x_check in range(grid.shape[1]):
-                            if grid[y_check][x_check] == 1:
-                                if (y_check, x_check) not in path:
-                                    dist = abs(y_check - y) + abs(x_check - x)
-                                    if dist < min_dist:
-                                        min_dist = dist
-                                        next_cell = (y_check, x_check)
-                    if next_cell is None:
-                        # no valid next cell found.. error 
-                        raise ValueError("No valid next cell found during lawnmower path planning (not all cells in grid are covered yet)")
+                # if all_covered:
+                #     # we are done - exit state machine
+                #     break
+                # else: # this should happen fairly rarely
+                #     # find the closest uncovered 1 cell in grid
+                #     min_dist = float('inf')
+                #     next_cell = None
+                #     for y_check in range(grid.shape[0]):
+                #         for x_check in range(grid.shape[1]):
+                #             if grid[y_check][x_check] == 1:
+                #                 if (y_check, x_check) not in path:
+                #                     dist = abs(y_check - y) + abs(x_check - x)
+                #                     if dist < min_dist:
+                #                         min_dist = dist
+                #                         next_cell = (y_check, x_check)
+                #     if next_cell is None:
+                #         # no valid next cell found.. error 
+                #         raise ValueError("No valid next cell found during lawnmower path planning (not all cells in grid are covered yet)")
 
-                    # move to the chosen next cell
-                    y = next_cell[0]
-                    x = next_cell[1]
-                    path.append((y, x))
+                #     # move to the chosen next cell
+                #     y = next_cell[0]
+                #     x = next_cell[1]
+                #     path.append((y, x))
 
-                    # reset state machine to do another sweep
-                    y_move_direction = front_move_direction
-                    lawnmower_state = 'sweep_in_one_direction'
+                #     # reset state machine to do another sweep
+                #     y_move_direction = front_move_direction
+                #     lawnmower_state = 'sweep_in_one_direction'
 
     elif direction == "vertical":
         # TODO 

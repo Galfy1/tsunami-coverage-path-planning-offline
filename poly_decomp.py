@@ -231,7 +231,6 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
     # Find the starting cell
     def find_start_cell(grid, start_corner, direction):
         rows, cols = grid.shape
-        start_cell = None
 
         # Determine scan directions
         y_range = range(rows)
@@ -267,73 +266,46 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
 
         return None
 
+    
+
+    #################### Find starting cell ####################
+
 
     start_cell = find_start_cell(grid, start_corner, direction)
     if start_cell is None:
         raise ValueError("No valid starting cell found in the grid.")
-    
 
-    # Generate lawnmower path
-    # rows, cols = grid.shape
-    # y, x = start_cell
-    # path.append( (y, x) )
-    # turn_count = 0
-    # horizontal_move = (direction == 'horizontal')
-    # while True:
-    #     # Move in the current direction until hitting a boundary
-    #     if horizontal_move:
-    #         # Move right
-    #         while x + 1 < cols and grid[y][x + 1] == 1:
-    #             x += 1
-    #             path.append( (y, x) )
-    #         # Try to move down
-    #         if y + 1 < rows and grid[y + 1][x] == 1:
-    #             y += 1
-    #             path.append( (y, x) )
-    #             turn_count += 1
-    #             horizontal_move = False
-    #         else:
-    #             break  # No more moves possible
-    #     else:
-    #         # Move left
-    #         while x - 1 >= 0 and grid[y][x - 1] == 1:
-    #             x -= 1
-    #             path.append( (y, x) )
-    #         # Try to move down
-    #         if y + 1 < rows and grid[y + 1][x] == 1:
-    #             y += 1
-    #             path.append( (y, x) )
-    #             turn_count += 1
-    #             horizontal_move = True
-    #         else:
-    #             break  # No more moves possible
-    
-    # end_cell = (y, x)
-    # path_len = len(path)
+
+    #################### Lawnmower path generation ####################
 
 
     y, x = start_cell
     path.append((y, x))
 
     y_move_direction = -1 if 'n' in start_corner else 1
-    x_move_direction = -1 if 'w' in start_corner else 1
+    x_move_direction = 1 if 'w' in start_corner else -1
 
-    while True:
+    if direction == "horizontal":
 
-        print(f"Lawnmover: Current cell: {(y,x)}")
+        # Loop to go all all the way in 1 y direction:
+        while True:
 
-        if direction == "horizontal":
-            
             # move horizontally until hitting a boundary:
             while (0 <= x + x_move_direction < grid.shape[1]) and (grid[y][x + x_move_direction] == 1): # left part: break if hitting outer grid limits. right part: break if hitting a 0
-                # move along x:
-                x += x_move_direction
-                # create path:
-                print(f"moving direction: {x_move_direction}")
-                path.append((y,x))
-                #print(f"Lawnmover: Moved to cell: {(y,x)}")
+                x += x_move_direction # move along x
+                path.append((y,x)) # create path
 
-            print("SNUPPERFLUPPER")
+            # make sure the current row is fully covered before moving to next row
+            # (done by moving back the other way untill hitting boundary or already covered cell)
+            x_move_direction = -1 * x_move_direction # (we dont count this as a turn, since it might be the only direction the uav can move)
+            while (0 <= x + x_move_direction < grid.shape[1]) and (grid[y][x + x_move_direction] == 1): # left part: break if hitting outer grid limits. right part: break if hitting a 0
+                # if we hit a cell already in path, we are done with this row:
+                if (y, x + x_move_direction) in path: 
+                    break
+                # else, keep moving
+                x += x_move_direction # move along x
+                path.append((y,x)) # create path
+
 
             # We now cant move futher in x! we need to go to next row (y) (in the same way they do it in the figures in the paper):
 
@@ -343,33 +315,36 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                 # out of bounds - we are done
                 break
 
-            # then, find the two options in that row (leftmost and rightmost 1s)
-            next_cell_option_1 = None
-            next_cell_option_2 = None
-            for x_temp in range (grid.shape[1]):
-                if grid[next_y][x_temp] == 1:
-                    next_cell_option_1 = (next_y, x_temp)
-                    break
-            for x_temp in range (grid.shape[1]-1, -1, -1):
-                if grid[next_y][x_temp] == 1:
-                    next_cell_option_2 = (next_y, x_temp)
-                    break
+
+            # Go through the next row to find all border cells (transitions from 0 to 1 or 1 to 0)
+            next_row_border_cells = []
+            val = 0
+            for x_temp in range(grid.shape[1]):
+                cell_val = grid[next_y][x_temp]
+                if cell_val != val:
+                    # transition detected
+                    # find the '1' cell in the transition
+                    if cell_val == 1:
+                        next_row_border_cells.append( (next_y, x_temp) )
+                    elif cell_val == 0:
+                        next_row_border_cells.append( (next_y, x_temp - 1) ) # (remember, we are going from "left to right", so the previous cell is the 1)
+                    val = cell_val
 
             # choose the next cell thats closest to current x
-            if next_cell_option_1 is not None and next_cell_option_2 is not None:
-                dist1 = abs(next_cell_option_1[1] - x)
-                dist2 = abs(next_cell_option_2[1] - x)
-                if dist1 <= dist2:
-                    next_cell = next_cell_option_1
-                else:
-                    next_cell = next_cell_option_2
-            elif next_cell_option_1 is not None:
-                next_cell = next_cell_option_1
-            elif next_cell_option_2 is not None:
-                next_cell = next_cell_option_2
-            else:
+            min_dist = float('inf')
+            next_cell = None
+            for cell in next_row_border_cells:
+                dist = abs(cell[1] - x)
+                if dist < min_dist:
+                    min_dist = dist
+                    next_cell = cell
+            if next_cell is None:
                 # no valid next cell found - we are done
                 break
+
+            if (y, x) == (74, 21):
+                print(f"next_cell: {next_cell}")
+                print(f"min_dist: {min_dist}")
 
             # commit to the chosen next cell
             x = next_cell[1]
@@ -380,9 +355,9 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
             x_move_direction = -1 * x_move_direction
             turn_count += 1
 
-        elif direction == "vertical":
-            # TODO 
-            pass
+    elif direction == "vertical":
+        # TODO 
+        pass
 
     end_cell = (y, x)
     path_len = len(path)
@@ -673,6 +648,8 @@ def main(args=None) -> None:
 
 
     # PLOTTING MADE USING AI:
+    ALSO_PLOT_PATH = True
+
     print (f"Decomposition resulted in {len(culling_merged_grids)} regular sub-polygons")
     # Plot all the regular sub-polygons with at most 5 subplots per row (multiple rows allowed)
     n = len(culling_merged_grids)
@@ -689,6 +666,22 @@ def main(args=None) -> None:
             # Overlay the sub-grid in orange/red
             axs[i].imshow(sub_grid, cmap='Oranges', origin='lower', alpha=0.8, vmin=0, vmax=1)
             axs[i].set_title(f"Regular sub-grid {i+1} (overlay on original)")
+
+            if ALSO_PLOT_PATH == True:
+                # Attempt to compute and plot a lawnmower path for this sub-grid for debugging.
+                try:
+                    path, path_len, start_cell, end_cell, turn_count = lawnmower(sub_grid, start_corner='nw', direction='horizontal')
+                    if path_len > 0:
+                        xs = [p[1] for p in path]  # x coordinates for plotting
+                        ys = [p[0] for p in path]  # y coordinates for plotting
+                        axs[i].plot(xs, ys, color='cyan', linewidth=1.5, marker='o', markersize=3, label='lawnmower path')
+                        # mark start and end
+                        axs[i].scatter([start_cell[1]], [start_cell[0]], color='green', s=40, label='start')
+                        axs[i].scatter([end_cell[1]], [end_cell[0]], color='red', s=40, label='end')
+                        axs[i].legend(loc='upper right', fontsize='small')
+                except Exception as e:
+                    # If no valid path or other error, just skip plotting path for this sub-grid
+                    print(f"Could not compute lawnmower path for sub-grid {i+1}: {e}")
 
         # Hide any unused subplot axes
         for j in range(n, nrows * ncols):

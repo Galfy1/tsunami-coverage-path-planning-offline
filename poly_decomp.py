@@ -265,8 +265,26 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                     return (y, x)
 
         return None
-
     
+    def is_path_clear_using_L(grid, start_cell, end_cell):
+        # Check if there is a clear path of 1's between start_cell and end_cell
+        # Here, a "clear path" does NOT allowing going backwards (i.e., only L-shaped paths allowed)
+        y1, x1 = start_cell
+        y2, x2 = end_cell
+        # # Move in y direction first
+        # y_step = 1 if y2 > y1 else -1
+        # for y in range(y1, y2 + y_step, y_step):
+        #     if grid[y][x1] == 0:
+        #         return False
+        # # Then move in x direction
+        # x_step = 1 if x2 > x1 else -1
+        # for x in range(x1, x2 + x_step, x_step):
+        #     if grid[y2][x] == 0:
+        #         return False
+
+        # for each x, move in y and scan the enire ROW COLUM?!?!? HUSK DET SKAL OGSÅ VIRKE FOR VERTICAL FUUUCK TODO
+
+        return True
 
     #################### Find starting cell ####################
 
@@ -285,7 +303,7 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
     y_move_direction = -1 if 'n' in start_corner else 1
     x_move_direction = 1 if 'w' in start_corner else -1
     front_move_direction = y_move_direction if direction == "horizontal" else x_move_direction
-    lawnmower_state = 'sweep' # start sweeping
+    lawnmower_state = 'sweep_in_1_direction' # start sweeping
 
     # STATE MACHINE FLOW: 
     #       Full sweep in "front" direction --> Full sweep "back" in other direction --> Are all 1's from grid in path:
@@ -297,7 +315,7 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
         # State machine, to complete the full lawnmower path:
         while True:
 
-            if lawnmower_state == 'sweep':
+            if lawnmower_state == 'sweep_in_1_direction':
 
                 # move horizontally until hitting a boundary:
                 while (0 <= x + x_move_direction < grid.shape[1]) and (grid[y][x + x_move_direction] == 1): # left part: break if hitting outer grid limits. right part: break if hitting a 0
@@ -324,12 +342,9 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                 # first, find the first cell in the next row (thats closets to the current cell)
                 next_y = y + y_move_direction
                 if not (0 <= next_y < grid.shape[0]):
-                    # out of bounds - we are done
-                    if y_move_direction == front_move_direction:
-                        y_move_direction = -1 * y_move_direction # now, sweep against front direction
-                    else:  # we have done sweeping in both directions
-                        lawnmower_state = 'check_for_completion'
-                    continue 
+                    # out of bounds - we are done with sweeping in this direction
+                    lawnmower_state = 'sweep_in_1_direction_done'
+                    continue
 
 
                 # Go through the next row to find all border cells (transitions from 0 to 1 or 1 to 0)
@@ -345,29 +360,33 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                         elif cell_val == 0:
                             next_row_border_cells.append( (next_y, x_temp - 1) ) # (remember, we are going from "left to right", so the previous cell is the 1)
                         val = cell_val
+                # in the scenaio that a row starts/ends with a 1 (i.e. no transition), we need to add that manually:
+                if grid[next_y][0] == 1:
+                    next_row_border_cells.insert(0, (next_y, 0))
+                if grid[next_y][grid.shape[1]-1] == 1:
+                    next_row_border_cells.append( (next_y, grid.shape[1]-1) )
 
-                # choose the next cell thats closest to current x
+
+                # choose the next_row_border_cells cell thats closest to current x
                 min_dist = float('inf')
                 next_cell = None
                 for cell in next_row_border_cells:
-                    if cell in path:
-                        continue # never pick an already covered cell
+                    # if cell in path:
+                    #     continue # never pick an already covered cell
                     dist = abs(cell[1] - x)
                     if dist < min_dist:
                         min_dist = dist
                         next_cell = cell
-                if next_cell is None:
-                    # no valid next cell found - we are done
-                    if y_move_direction == front_move_direction:
-                        y_move_direction = -1 * y_move_direction # change front direction for next sweep
-                    else: # we have done sweeping in both directions
-                        lawnmower_state = 'check_for_completion'
+                if next_cell is None or next_cell in path: # (if next_cell is in path, it is safe to asume that the row is already fully covered)
+                    # no valid next cell found - we are done with sweeping in this direction
+                    lawnmower_state = 'sweep_in_1_direction_done'
                     continue
-
-                if (y, x) == (74, 21):
-                    print(f"next_cell: {next_cell}")
-                    print(f"min_dist: {min_dist}")
-
+                # make sure next_cell is even reachable from the current cell (i.e., there is a path of 1's between them, without going backwards)
+                if not is_path_clear_using_L(grid, (y, x), next_cell):
+                    # no valid next cell found - we are done with sweeping in this direction
+                    lawnmower_state = 'sweep_in_1_direction_done'
+                    continue
+  
                 # commit to the chosen next cell
                 x = next_cell[1]
                 y = next_cell[0]
@@ -376,6 +395,17 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                 # move the other way back
                 x_move_direction = -1 * x_move_direction
                 turn_count += 1
+
+
+            elif lawnmower_state == 'sweep_in_1_direction_done':
+                # If we are done sweeping in one direction, we need to check if we can sweep in the other direction
+                if y_move_direction == front_move_direction:
+                    # let us sweep in the other direction now
+                    y_move_direction = -1 * y_move_direction # change front direction for next sweep
+                    lawnmower_state = 'sweep_in_1_direction'
+                else: # we have done sweeping in both directions
+                    lawnmower_state = 'check_for_completion'
+                continue
 
             elif lawnmower_state == 'check_for_completion': 
                 break # TODO 
@@ -423,7 +453,7 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
 
                 # reset state machine to do another sweep
                 y_move_direction = front_move_direction
-                lawnmower_state = 'sweep'
+                lawnmower_state = 'sweep_in_1_direction'
 
     elif direction == "vertical":
         # TODO 

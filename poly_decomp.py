@@ -217,6 +217,10 @@ def culling_merging(all_sub_grids):
 def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizontal'):
     # implement lawnmower path generation for the given grid
 
+    # TODO Gør, så når man lawnmover, tjekker den gridded om det er mononome i en retning.
+	#hvis den er monoton i et retning, kan den ikke lave simple lawnmover (uden potentielt at have missed area... som ville kræve path planning (e.g. A*) for at "backpropegate" ud af stuck, hen til den tætteste missed cell. samtilidgt vil det også betyde revisisted cells.. hvilket er ineffektivt)
+    # hvis den ikke allower er retning, så return et None path (eventuelt med inf længde og turns, etc.)
+
     path = []
     end_cell = None
     turn_count = 0
@@ -441,17 +445,13 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                 all_covered = True
                 for y_check in range(grid.shape[0]):
                     for x_check in range(grid.shape[1]):
-                        if grid[y_check][x_check] == 1:
-                            if (y_check, x_check) not in path:
-                                all_covered = False
-                                break
-                    if not all_covered:
-                        break
+                        if (grid[y_check][x_check] == 1) and ((y_check, x_check) not in path):
+                            all_covered = False
 
                 if all_covered:
                     # we are done - exit state machine
                     break
-                else: # this should happen fairly rarely
+                else: # we need to cover the remaining area
                     lawnmower_state = 'handle_incomplete_coverage'
                     continue
 

@@ -348,26 +348,56 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
 
 
                 # Go through the next row to find all border cells (transitions from 0 to 1 or 1 to 0)
+                # next_row_border_cells = []
+                # val = 0
+                # for x_temp in range(grid.shape[1]):
+                #     cell_val = grid[next_y][x_temp]
+                #     if cell_val != val:
+                #         # transition detected
+                #         # find the '1' cell in the transition
+                #         if cell_val == 1:
+                #             next_row_border_cells.append( (next_y, x_temp) )
+                #         elif cell_val == 0:
+                #             next_row_border_cells.append( (next_y, x_temp - 1) ) # (remember, we are going from "left to right", so the previous cell is the 1)
+                #         val = cell_val
+                # # in the scenaio that a row starts/ends with a 1 (i.e. no transition), we need to add that manually:
+                # if grid[next_y][0] == 1:
+                #     next_row_border_cells.insert(0, (next_y, 0))
+                # if grid[next_y][grid.shape[1]-1] == 1:
+                #     next_row_border_cells.append( (next_y, grid.shape[1]-1) )
+
+
+                ######## Go through the next row to find all border cells ########
+
+                # Find a path to gain access to next row (no backtracking allowed, only L-shaped paths, only allowed to move in 1's)
                 next_row_border_cells = []
-                val = 0
                 for x_temp in range(grid.shape[1]):
-                    cell_val = grid[next_y][x_temp]
-                    if cell_val != val:
-                        # transition detected
-                        # find the '1' cell in the transition
-                        if cell_val == 1:
-                            next_row_border_cells.append( (next_y, x_temp) )
-                        elif cell_val == 0:
-                            next_row_border_cells.append( (next_y, x_temp - 1) ) # (remember, we are going from "left to right", so the previous cell is the 1)
-                        val = cell_val
-                # in the scenaio that a row starts/ends with a 1 (i.e. no transition), we need to add that manually:
-                if grid[next_y][0] == 1:
-                    next_row_border_cells.insert(0, (next_y, 0))
-                if grid[next_y][grid.shape[1]-1] == 1:
-                    next_row_border_cells.append( (next_y, grid.shape[1]-1) )
+                    # is it possible to go to next row here?
+                    if grid[next_y, x_temp] == 1:
+                        # yes! we are now in the next row.
+                        # now, move all the way left and right to get the boundary cells.
+                        # move left:
+                        for xl in range(x_temp, -1, -1):
+                            if grid[next_y, xl] == 0: 
+                                # we hit a boundary. add the 1 cell of the boundary
+                                next_row_border_cells.append( (next_y, xl + 1) )
+                            elif xl <= 0:
+                                # we are at the edge of the grid. this has to be a boundary
+                                next_row_border_cells.append( (next_y, xl) )
+                        # move right:
+                        for xr in range(x_temp+1, grid.shape[1]):
+                            last_x_idx = grid.shape[1]-1
+                            if grid[next_y, xr] == 0: 
+                                # we hit a boundary. add the 1 cell of the boundary
+                                next_row_border_cells.append( (next_y, xr - 1) )
+                            elif xr >= last_x_idx:
+                                # we are at the edge of the grid. this has to be a boundary
+                                next_row_border_cells.append( (next_y, xr) )
+                # remove duplicates
+                next_row_border_cells = list(set(next_row_border_cells)) # (set does not allow duplicates)
 
 
-                # choose the next_row_border_cells cell thats closest to current x
+                ######## choose the next_row_border_cells cell that is closest to current x ########
                 min_dist = float('inf')
                 next_cell = None
                 for cell in next_row_border_cells:
@@ -381,18 +411,14 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                     # no valid next cell found - we are done with sweeping in this direction
                     lawnmower_state = 'sweep_in_1_direction_done'
                     continue
-                # make sure next_cell is even reachable from the current cell (i.e., there is a path of 1's between them, without going backwards)
-                if not is_path_clear_using_L(grid, (y, x), next_cell):
-                    # no valid next cell found - we are done with sweeping in this direction
-                    lawnmower_state = 'sweep_in_1_direction_done'
-                    continue
+
   
-                # commit to the chosen next cell
+                ######## commit to the chosen next cell ########
                 x = next_cell[1]
                 y = next_cell[0]
                 path.append((y, x))
 
-                # move the other way back
+                ######## move the other way back ########
                 x_move_direction = -1 * x_move_direction
                 turn_count += 1
 

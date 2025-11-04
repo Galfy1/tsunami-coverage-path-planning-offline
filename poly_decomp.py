@@ -373,35 +373,64 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
 
                 ######## Go through the next row to find all border cells ########
 
-                # Find a path to gain access to next row (no backtracking allowed, only L-shaped paths, only allowed to move in 1's)
                 next_row_border_cells = []
-                for x_temp in range(grid.shape[1]):
-                    # is it possible to go to next row here?
-                    if grid[next_y, x_temp] == 1:
-                        # yes! we are now in the next row.
-                        # now, move all the way left and right to get the boundary cells.
-                        # move left:
-                        for xl in range(x_temp, -1, -1):
-                            if grid[next_y, xl] == 0: 
-                                # we hit a boundary. add the 1 cell of the boundary
-                                next_row_border_cells.append( (next_y, xl + 1) )
-                            elif xl <= 0:
-                                # we are at the edge of the grid. this has to be a boundary
-                                next_row_border_cells.append( (next_y, xl) )
-                        # move right:
-                        for xr in range(x_temp+1, grid.shape[1]):
-                            last_x_idx = grid.shape[1]-1
-                            if grid[next_y, xr] == 0: 
-                                # we hit a boundary. add the 1 cell of the boundary
-                                next_row_border_cells.append( (next_y, xr - 1) )
-                            elif xr >= last_x_idx:
-                                # we are at the edge of the grid. this has to be a boundary
-                                next_row_border_cells.append( (next_y, xr) )
-                # remove duplicates
-                next_row_border_cells = list(set(next_row_border_cells)) # (set does not allow duplicates)
+
+                # Find a path to gain access to next row (no backtracking allowed, only L-shaped paths, only allowed to move in 1's)
+                # (we call the x value where a path is possible is called "transit_x")
+
+                transit_x = None 
+                for xl in range(x, -1, -1): # search left for a valid transit_x
+                    if grid[y, xl] == 0: # we have gone too far left - stop looking
+                        break
+                    if grid[next_y, xl] == 1:
+                        # valid transit_x found!
+                        transit_x = xl
+                        break
+                    # elif grid[y, xl] == 0: # we cant go further left
+                    #     break
+                if transit_x is None: # no valid transit_x found on the left side - try right side
+                    for xr in range(x, grid.shape[1]): # search right for a valid transit_x
+                        if grid[y, xr] == 0: # we have gone too far right - stop looking
+                            break
+                        if grid[next_y, xr] == 1:
+                            # valid transit_x found!
+                            transit_x = xr
+                            break
+
+                if transit_x is not None:
+
+                    # now, in the next row (from transit_x), move all the way left and right to get the boundary cells.
+                    # move left:
+                    for xl in range(transit_x, -1, -1):
+                        if next_y == 84:
+                            print("DEBUG")
+                        if grid[next_y, xl] == 0: 
+                            # we hit a boundary. add the 1 cell of the boundary
+                            next_row_border_cells.append( (next_y, xl + 1) )
+                            break
+                        elif xl <= 0:
+                            # we are at the edge of the grid. this has to be a boundary
+                            next_row_border_cells.append( (next_y, xl) )
+                            break
+                    # move right:
+                    for xr in range(transit_x, grid.shape[1]):
+                        last_x_idx = grid.shape[1]-1
+                        if next_y == 84:
+                            print("DEBUG")
+                        if grid[next_y, xr] == 0: 
+                            # we hit a boundary. add the 1 cell of the boundary
+                            next_row_border_cells.append( (next_y, xr - 1) )
+                            break
+                        elif xr >= last_x_idx:
+                            # we are at the edge of the grid. this has to be a boundary
+                            next_row_border_cells.append( (next_y, xr) )
+                            break
+                    # remove duplicates
+                    next_row_border_cells = list(set(next_row_border_cells)) # (set does not allow duplicates)
 
 
                 ######## choose the next_row_border_cells cell that is closest to current x ########
+
                 min_dist = float('inf')
                 next_cell = None
                 for cell in next_row_border_cells:
@@ -420,6 +449,8 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                 ######## commit to the chosen next cell ########
                 x = next_cell[1]
                 y = next_cell[0]
+                if (y, x) == (62,94):
+                    print("HERE")
                 path.append((y, x))
 
                 ######## move the other way back ########

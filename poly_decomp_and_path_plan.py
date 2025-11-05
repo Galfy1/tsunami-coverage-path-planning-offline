@@ -9,6 +9,7 @@ import math
 from collections import deque as queue
 from custom_cell_tools import dx_4way, dy_4way, dx_8way, dy_8way
 import matplotlib.pyplot as plt
+import itertools
 
 # reuse code from offline_phase.py
 from offline_phase import create_grid_from_polygon_and_noflyzones
@@ -216,70 +217,192 @@ def culling_merging(all_sub_grids):
 
 
 
-def path_loss(path: list, start_cell, end_cell, turn_count):
-    pass
 
-def select_best_path_among_candidates(candidate_list: list):
 
-    # (use loss function from paper)
+# (see paper for loss function definition)
+def compute_total_path_losses(candidate_list):
 
-    # calculate loss for each candidate:
+    first_term = sum(c['internal_loss'] for c in candidate_list)
+
+    second_term = 0
+    for i in range(0, len(candidate_list)-1):
+        end_cell_current = candidate_list[i]['end_cell']
+        start_cell_next = candidate_list[i+1]['start_cell']
+        # euclidean distance between end cell of current and start cell of next
+        dist = np.linalg.norm(np.array(end_cell_current) - np.array(start_cell_next))
+        second_term += dist
+    
+    total_cost = first_term + second_term
+
+    # TODO OPTIMIZATION HALLØJ
+
+    return total_cost 
+
+
+# def total_cost(candidate_list, order):
+#     first_term = sum(c['internal_loss'] for c in candidate_list)
+#     second_term = 0
+#     for i in range(len(order)-1):
+#         end_cell_current = np.array(candidate_list[order[i]]['end_cell'])
+#         start_cell_next = np.array(candidate_list[order[i+1]]['start_cell'])
+#         dist = np.linalg.norm(end_cell_current - start_cell_next)
+#         second_term += dist
+#     return first_term + second_term
+
+
+# def find_best_order(candidate_list):
+#     best_order = None
+#     best_cost = float('inf')
+#     for order in itertools.permutations(range(len(candidate_list))):
+#         cost = total_cost(candidate_list, order)
+#         if cost < best_cost:
+#             best_cost = cost
+#             best_order = order
+#     return best_order, best_cost
+
+
+# (see paper for loss function definition)
+def compute_internal_path_losses(candidate_list, alpha = 1.0, len_tolerance = 10): # TODO find en okay default alpha og turn tol
+
     for candidate in candidate_list:
-        candidate['loss'] = path_loss(candidate['path'], candidate['start_cell'], candidate['end_cell'], candidate['turn_count'])
+        turn_count = candidate['turn_count']
 
-    # select the best candidate based on the lowest loss
-    best_candidate = min(candidate_list, key=lambda x: x['loss']) # TODO check if this is correct
+        # first term: path length
+        first_term = candidate['path_len_euclidean']
 
-    return best_candidate
+        # second term: turns (if any other candidate has similar path length)
+        valid_turn_counts = []
+        for candidate_other in candidate_list:
+            if abs(candidate_other['path_len_euclidean']-first_term) < len_tolerance:
+                valid_turn_counts.append(candidate_other['turn_count'])
+        second_term = turn_count - (min(valid_turn_counts) if valid_turn_counts else 0)
+        second_term = alpha * max(0, second_term)
 
+        candidate['internal_loss'] = first_term + second_term
 
+    return candidate_list
 
 def path_plan_swarm(all_sub_grids, uav_count):
-    # Match the number of partitions to the number of UAVs
-
+    start_corners = ['nw', 'ne', 'sw', 'se']
+    directions = ['horizontal', 'vertical']
     final_paths = []
+
+    all_candidates_per_grid = []
+
+    # Step 1: Generate all candidates for each sub-grid
+    for sub_grid in all_sub_grids:
+        candidate_list = []
+        for corner in start_corners:
+            for direction in directions:
+                path, path_len_euclidean, start_cell, end_cell, turn_count = lawnmower(
+                    sub_grid, start_corner=corner, direction=direction
+                )
+                if path is not None:
+                    candidate_list.append({
+                        'path': path,
+                        'path_len_euclidean': path_len_euclidean,
+                        'start_cell': start_cell,
+                        'end_cell': end_cell,
+                        'turn_count': turn_count,
+                        'internal_loss': None
+                    })
+        # Compute internal losses for this grid’s candidates
+        candidate_list = compute_internal_path_losses(candidate_list)
+        all_candidates_per_grid.append(candidate_list)
+
+    # Step 2: Generate all possible combinations across grids
+    # (Cartesian product of candidate options per grid)
+    all_combinations = itertools.product(*all_candidates_per_grid)
+
+    # Step 3: Brute-force evaluation
+    best_combination = None
+    best_cost = float('inf')
+
+    for combo in all_combinations:
+        combo_list = list(combo)
+        cost = compute_total_path_losses(combo_list)
+        if cost < best_cost:
+            best_cost = cost
+            best_combination = combo_list
+
+    # Step 4: Store best result
+    final_paths = [c['path'] for c in best_combination]
+
+    print("final path example:", final_paths[0] if final_paths else "No paths")
+    print(f"✅ Best total cost: {best_cost:.2f}")
+    return final_paths, best_cost
+
+
+
+# def select_best_path_among_candidates(candidate_list: list):
+
+#     # (use loss function from paper)
+
+#     # calculate loss for each candidate:
+#     for candidate in candidate_list:
+#         candidate['internal_loss'] = path_loss(candidate['path'], candidate['start_cell'], candidate['end_cell'], candidate['turn_count'])
+
+#     # # select the best candidate based on the lowest loss
+#     # best_candidate = min(candidate_list, key=lambda x: x['loss']) # TODO check if this is correct
+
+#     # return best_candidate
+
+
+
+# def path_plan_swarm(all_sub_grids, uav_count):
+#     # Match the number of partitions to the number of UAVs
+
+#     final_paths = []
     
-    if len(all_sub_grids) == uav_count:
-        # Perfect match. simple select the best lawnmower path for each partition
+#     # if len(all_sub_grids) == uav_count:
+#     #     # Perfect match. simple select the best lawnmower path for each partition
 
-        # Define all combinations of start corners and directions
-        start_corners = ['nw', 'ne', 'sw', 'se']
-        directions = ['horizontal', 'vertical']
+#     # Define all combinations of start corners and directions
+#     start_corners = ['nw', 'ne', 'sw', 'se']
+#     directions = ['horizontal', 'vertical']
 
-        for sub_grid in all_sub_grids:
+#     # For each sub-grid, generate all candidate paths:
+#     for sub_grid in all_sub_grids:
+#         candidate_list = []
+#         for corner in start_corners:
+#             for direction in directions:
+#                 path, path_len_euclidean, start_cell, end_cell, turn_count = lawnmower(
+#                     sub_grid, start_corner=corner, direction=direction
+#                 )
+#                 if path is not None:
+#                     candidate_list.append({
+#                         'path': path,
+#                         'path_len_euclidean': path_len_euclidean,
+#                         'start_cell': start_cell,
+#                         'end_cell': end_cell,
+#                         'turn_count': turn_count,
+#                         'internal_loss': None # to be computed later
+#                     })
 
-            # For each sub-grid, generate all candidate paths
-            candidate_list = []
-            for corner in start_corners:
-                for direction in directions:
-                    path, path_len_euclidean, start_cell, end_cell, turn_count = lawnmower(
-                        sub_grid, start_corner=corner, direction=direction
-                    )
-                    if path is not None:
-                        candidate_list.append({
-                            'path': path,
-                            'path_len_euclidean': path_len_euclidean,
-                            'start_cell': start_cell,
-                            'end_cell': end_cell,
-                            'turn_count': turn_count,
-                            'loss': None # to be computed later
-                        })
+#     # Now, compute internal path losses for all candidates
+#     candidate_list = compute_internal_path_losses(candidate_list)
 
-            # Now select the best candidate for each sub-grid based on loss function
-            best_candidate = select_best_path_among_candidates(candidate_list)
-            final_paths.append(best_candidate)
+#     best_order, best_cost = find_best_order(candidate_list)
+#     print("###############################################")
+#     print(best_order, best_cost)
+#     print("###############################################")
+
+
+#         # # Now select the best candidate for each sub-grid based on loss function
+#         # best_candidate = select_best_path_among_candidates(candidate_list)
+#         # final_paths.append(best_candidate)
 
 
     
-    elif len(all_sub_grids) < uav_count:
-        # Not enough partitions, need to split some
-        # TODO implement splitting logic
-        pass
-    elif len(all_sub_grids) > uav_count:
-        # Too many partitions, need to merge some
-        # TODO implement merging logic
-        pass
-    return all_sub_grids 
+#     # elif len(all_sub_grids) < uav_count:
+#     #     # Not enough partitions, need to split some
+#     #     # TODO implement splitting logic
+#     #     pass
+#     # elif len(all_sub_grids) > uav_count:
+#     #     # Too many partitions, need to merge some
+#     #     # TODO implement merging logic
+#     #     pass
+#     # return all_sub_grids 
     
 
 
@@ -451,6 +574,10 @@ def main(args=None) -> None:
 
     # After processing all grids, perform culling/merging step 
     culling_merged_grids = culling_merging(regular_grids_result)
+
+    # DEBUG
+    path_plan_swarm(culling_merged_grids, uav_count=3)
+    # DEBUG END
 
     # Plot the resulting sub-grids
     plot_subgrid(fly_grid, culling_merged_grids, plot_paths=True)

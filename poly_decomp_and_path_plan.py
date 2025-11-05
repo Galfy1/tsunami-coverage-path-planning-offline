@@ -219,24 +219,24 @@ def culling_merging(all_sub_grids):
 
 
 
-# (see paper for loss function definition)
-def compute_total_path_losses(candidate_list):
+# # (see paper for loss function definition)
+# def compute_total_path_losses(candidate_list):
 
-    first_term = sum(c['internal_loss'] for c in candidate_list)
+#     first_term = sum(c['internal_loss'] for c in candidate_list)
 
-    second_term = 0
-    for i in range(0, len(candidate_list)-1):
-        end_cell_current = candidate_list[i]['end_cell']
-        start_cell_next = candidate_list[i+1]['start_cell']
-        # euclidean distance between end cell of current and start cell of next
-        dist = np.linalg.norm(np.array(end_cell_current) - np.array(start_cell_next))
-        second_term += dist
+#     second_term = 0
+#     for i in range(0, len(candidate_list)-1):
+#         end_cell_current = candidate_list[i]['end_cell']
+#         start_cell_next = candidate_list[i+1]['start_cell']
+#         # euclidean distance between end cell of current and start cell of next
+#         dist = np.linalg.norm(np.array(end_cell_current) - np.array(start_cell_next))
+#         second_term += dist
     
-    total_cost = first_term + second_term
+#     total_cost = first_term + second_term
 
-    # TODO OPTIMIZATION HALLØJ
+#     # TODO OPTIMIZATION HALLØJ
 
-    return total_cost 
+#     return total_cost 
 
 
 # def total_cost(candidate_list, order):
@@ -262,31 +262,36 @@ def compute_total_path_losses(candidate_list):
 
 
 # (see paper for loss function definition)
-def compute_internal_path_losses(candidate_list, alpha = 1.0, len_tolerance = 10): # TODO find en okay default alpha og turn tol
+# def compute_internal_path_losses(candidate_list, alpha = 1.0, len_tolerance = 10): # TODO find en okay default alpha og turn tol
 
-    for candidate in candidate_list:
-        turn_count = candidate['turn_count']
+#     for candidate in candidate_list:
+#         turn_count = candidate['turn_count']
 
-        # first term: path length
-        first_term = candidate['path_len_euclidean']
+#         # first term: path length
+#         first_term = candidate['path_len_euclidean']
 
-        # second term: turns (if any other candidate has similar path length)
-        valid_turn_counts = []
-        for candidate_other in candidate_list:
-            if abs(candidate_other['path_len_euclidean']-first_term) < len_tolerance:
-                valid_turn_counts.append(candidate_other['turn_count'])
-        second_term = turn_count - (min(valid_turn_counts) if valid_turn_counts else 0)
-        second_term = alpha * max(0, second_term)
+#         # second term: turns (if any other candidate has similar path length)
+#         valid_turn_counts = []
+#         for candidate_other in candidate_list:
+#             if abs(candidate_other['path_len_euclidean']-first_term) < len_tolerance:
+#                 valid_turn_counts.append(candidate_other['turn_count'])
+#         second_term = turn_count - (min(valid_turn_counts) if valid_turn_counts else 0)
+#         second_term = alpha * max(0, second_term)
 
-        candidate['internal_loss'] = first_term + second_term
+#         candidate['internal_loss'] = first_term + second_term
 
-    return candidate_list
+#     return candidate_list
 
 
 def multi_partition_path_loss(candidate_list, alpha = 1.0, len_tolerance = 10): # TODO find en okay default alpha og turn tol
     
     # VORES FUNKTION INPUT ER (dem vi skal brute force alle kombinationer af):
         # en liste med candidate. hver candidate har input variabler vi skal tjekke alle kombinationer af.
+
+    # TODO UPS DET SKAL LAVES LIDT OM..
+        # INPUTTET ER: en liste med partitions, der hver har en liste med candidate paths!
+        # det lidt svært af finde rundt i hvad der er partition og hvad der er candidate path..
+        # og vi skal også account for partition order? gg
 
 
     # hver canddiate har :

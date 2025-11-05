@@ -397,7 +397,10 @@ def main(args=None) -> None:
 
     # Note: polygons can for example for created in Mission Planner and exported as .poly files
     polygon_coords = []
-    with open('horizontal_nonmono_only.poly','r') as f: 
+    # TODO horizontal_nonmono_only
+    # TODO irregular_poly
+    # TODO totally_mono.py
+    with open('irregular_poly.poly','r') as f: 
         reader = csv.reader(f,delimiter=' ')
         for row in reader:
             if(row[0] == '#saved'): continue # skip header

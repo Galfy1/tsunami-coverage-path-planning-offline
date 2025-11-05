@@ -282,55 +282,117 @@ def compute_internal_path_losses(candidate_list, alpha = 1.0, len_tolerance = 10
 
     return candidate_list
 
-def path_plan_swarm(all_sub_grids, uav_count):
-    start_corners = ['nw', 'ne', 'sw', 'se']
-    directions = ['horizontal', 'vertical']
-    final_paths = []
 
-    all_candidates_per_grid = []
+def multi_partition_path_loss(candidate_list, alpha = 1.0, len_tolerance = 10): # TODO find en okay default alpha og turn tol
+    
+    # VORES FUNKTION INPUT ER (dem vi skal brute force alle kombinationer af):
+        # en liste med candidate. hver candidate har input variabler vi skal tjekke alle kombinationer af.
 
-    # Step 1: Generate all candidates for each sub-grid
-    for sub_grid in all_sub_grids:
-        candidate_list = []
-        for corner in start_corners:
-            for direction in directions:
-                path, path_len_euclidean, start_cell, end_cell, turn_count = lawnmower(
-                    sub_grid, start_corner=corner, direction=direction
-                )
-                if path is not None:
-                    candidate_list.append({
-                        'path': path,
-                        'path_len_euclidean': path_len_euclidean,
-                        'start_cell': start_cell,
-                        'end_cell': end_cell,
-                        'turn_count': turn_count,
-                        'internal_loss': None
-                    })
-        # Compute internal losses for this grid’s candidates
-        candidate_list = compute_internal_path_losses(candidate_list)
-        all_candidates_per_grid.append(candidate_list)
 
-    # Step 2: Generate all possible combinations across grids
-    # (Cartesian product of candidate options per grid)
-    all_combinations = itertools.product(*all_candidates_per_grid)
+    # hver canddiate har :
+    #{
+    #'path': path, # hmm den her skal ikke bruges som input... 
+    #'path_len_euclidean': path_len_euclidean,
+    #'start_cell': start_cell,
+    #'end_cell': end_cell,
+    #'turn_count': turn_count,
+    #}
 
-    # Step 3: Brute-force evaluation
-    best_combination = None
-    best_cost = float('inf')
 
-    for combo in all_combinations:
-        combo_list = list(combo)
-        cost = compute_total_path_losses(combo_list)
-        if cost < best_cost:
-            best_cost = cost
-            best_combination = combo_list
+    ########## Compute internal path losses ##########
+    internal_losses = []
+    for candidate in candidate_list:
+        turn_count = candidate['turn_count']
 
-    # Step 4: Store best result
-    final_paths = [c['path'] for c in best_combination]
+        # first term: path length
+        first_term_internal = candidate['path_len_euclidean']
 
-    print("final path example:", final_paths[0] if final_paths else "No paths")
-    print(f"✅ Best total cost: {best_cost:.2f}")
-    return final_paths, best_cost
+        # second term: turns (if any other candidate has similar path length)
+        valid_turn_counts = []
+        for candidate_other in candidate_list:
+            if abs(candidate_other['path_len_euclidean']-first_term_internal) < len_tolerance:
+                valid_turn_counts.append(candidate_other['turn_count'])
+        second_term_internal = turn_count - (min(valid_turn_counts) if valid_turn_counts else 0)
+        second_term_internal = alpha * max(0, second_term_internal)
+
+        internal_losses.append(first_term_internal + second_term_internal)
+
+
+    ########## Compute total path loss ##########
+    first_term_total = sum(internal_losses)
+
+    second_term_total = 0
+    for i in range(0, len(candidate_list)-1):
+        end_cell_current = candidate_list[i]['end_cell']
+        start_cell_next = candidate_list[i+1]['start_cell']
+        # euclidean distance between end cell of current and start cell of next
+        dist = np.linalg.norm(np.array(end_cell_current) - np.array(start_cell_next))
+        second_term_total += dist
+
+    total_cost = first_term_total + second_term_total
+
+    return total_cost
+
+    # usefra skal vi kalde multi_partition_path_loss en masse gange med alle input variationer.
+    #   og se hvem der giver mindste loss. hver gang der er en kombination der slår mindste loos rekorden, så gem den candidate_list vi bruge som input til den
+    # Når vi til sidste har fundet den mindste loss, er det candidate_list der gav den loss som har svaret! med hivlket kombination der er bedst!
+
+
+
+
+# def brute_force_evaluation(all_candidates_per_grid):
+
+
+
+# def path_plan_swarm(all_sub_grids, uav_count):
+#     start_corners = ['nw', 'ne', 'sw', 'se']
+#     directions = ['horizontal', 'vertical']
+#     final_paths = []
+
+#     all_candidates_per_grid = []
+
+#     # Step 1: Generate all candidates for each sub-grid
+#     for sub_grid in all_sub_grids:
+#         candidate_list = []
+#         for corner in start_corners:
+#             for direction in directions:
+#                 path, path_len_euclidean, start_cell, end_cell, turn_count = lawnmower(
+#                     sub_grid, start_corner=corner, direction=direction
+#                 )
+#                 if path is not None:
+#                     candidate_list.append({
+#                         'path': path,
+#                         'path_len_euclidean': path_len_euclidean,
+#                         'start_cell': start_cell,
+#                         'end_cell': end_cell,
+#                         'turn_count': turn_count,
+#                         'internal_loss': None
+#                     })
+#         # Compute internal losses for this grid’s candidates
+#         candidate_list = compute_internal_path_losses(candidate_list)
+#         all_candidates_per_grid.append(candidate_list)
+
+#     # Step 2: Generate all possible combinations across grids
+#     # (Cartesian product of candidate options per grid)
+#     all_combinations = itertools.product(*all_candidates_per_grid)
+
+#     # Step 3: Brute-force evaluation
+#     best_combination = None
+#     best_cost = float('inf')
+
+#     for combo in all_combinations:
+#         combo_list = list(combo)
+#         cost = compute_total_path_losses(combo_list)
+#         if cost < best_cost:
+#             best_cost = cost
+#             best_combination = combo_list
+
+#     # Step 4: Store best result
+#     final_paths = [c['path'] for c in best_combination]
+
+#     print("final path example:", final_paths[0] if final_paths else "No paths")
+#     print(f"✅ Best total cost: {best_cost:.2f}")
+#     return final_paths, best_cost
 
 
 

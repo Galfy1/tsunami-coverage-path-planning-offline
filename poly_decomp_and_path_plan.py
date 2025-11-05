@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 # reuse code from offline_phase.py
 from offline_phase import create_grid_from_polygon_and_noflyzones
 from lawnmower import lawnmower
+from scan_for_non_monotone_sections import scan_for_non_monotone_sections
 
 
 DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
@@ -160,7 +161,7 @@ def culling_merging(all_sub_grids):
                 if are_grids_adjacent(sub_grid, sub_grid_other):
                     # Check if their union satisfies the acceptability criterion
                     merged_grid = merge_grids(sub_grid, sub_grid_other)
-                    _, grid_is_irregular = scan_for_non_monotone_sections(merged_grid)
+                    _, grid_is_irregular, _, _ = scan_for_non_monotone_sections(merged_grid)
                     if grid_is_irregular == False:
                         print("WWWWWWWWWWW")
                         # Acceptability criterion satisfied!
@@ -215,10 +216,62 @@ def culling_merging(all_sub_grids):
 
 
 
+def path_loss(path: list, start_cell, end_cell, turn_count):
+    pass
+
+def select_best_path_among_candidates(candidate_list: list):
+
+    # (use loss function from paper)
+
+    # calculate loss for each candidate:
+    for candidate in candidate_list:
+        candidate['loss'] = path_loss(candidate['path'], candidate['start_cell'], candidate['end_cell'], candidate['turn_count'])
+
+    # select the best candidate based on the lowest loss
+    best_candidate = min(candidate_list, key=lambda x: x['loss']) # TODO check if this is correct
+
+    return best_candidate
+
+
 
 def path_plan_swarm(all_sub_grids, uav_count):
     # Match the number of partitions to the number of UAVs
-    if len(all_sub_grids) < uav_count:
+
+    final_paths = []
+    
+    if len(all_sub_grids) == uav_count:
+        # Perfect match. simple select the best lawnmower path for each partition
+
+        # Define all combinations of start corners and directions
+        start_corners = ['nw', 'ne', 'sw', 'se']
+        directions = ['horizontal', 'vertical']
+
+        for sub_grid in all_sub_grids:
+
+            # For each sub-grid, generate all candidate paths
+            candidate_list = []
+            for corner in start_corners:
+                for direction in directions:
+                    path, path_len_euclidean, start_cell, end_cell, turn_count = lawnmower(
+                        sub_grid, start_corner=corner, direction=direction
+                    )
+                    if path is not None:
+                        candidate_list.append({
+                            'path': path,
+                            'path_len_euclidean': path_len_euclidean,
+                            'start_cell': start_cell,
+                            'end_cell': end_cell,
+                            'turn_count': turn_count,
+                            'loss': None # to be computed later
+                        })
+
+            # Now select the best candidate for each sub-grid based on loss function
+            best_candidate = select_best_path_among_candidates(candidate_list)
+            final_paths.append(best_candidate)
+
+
+    
+    elif len(all_sub_grids) < uav_count:
         # Not enough partitions, need to split some
         # TODO implement splitting logic
         pass
@@ -316,81 +369,6 @@ def split_grid_along_sweep_line(grid: np.ndarray, sweep_line: LineString):
     return sub_grids
 
 
-def scan_for_non_monotone_sections(grid: np.ndarray):
-
-    non_monotone_sweep_lines = []
-    non_monotone_in_x = False
-    non_monotone_in_y = False
-
-    # go through all horizontal sweep lines:
-    p1_x = 0
-    p2_x = grid.shape[1]
-    for y in range(grid.shape[0]):
-        intersection_points = []
-        # check intersection with grid by going through the sweep line and check for 1-->0 or 0-->1 transitions
-        val = 0
-        for x in range(grid.shape[1]):
-            cell_val = grid[y][x]
-            if cell_val != val:
-                # transition detected
-                intersection_points.append( (y,x) )
-                val = cell_val
-        
-        #print(f"leng: {len(intersection_points)}")
-        if len(intersection_points) > 2:
-            # Sweep line is does not pass criteria! (its intersecting non-monotone sections)
-            sweep_line = LineString([ (p1_x, y), (p2_x, y) ])
-            gap_severity = 0
-            for i in range(1, len(intersection_points)-1, 2):
-                start_pt = intersection_points[i]
-                end_pt = intersection_points[i+1]
-                gap_severity += abs(end_pt[0] - start_pt[0]) # y coordinate difference
-                pass
-
-            # because  of the nature of the grid.. we cant split exactly on the line... so we have to split just above or below it.. 
-            # (excessive splitting will be corrected later in the "culling merging" step)
-            above_line = LineString([ (p1_x, y+1), (p2_x, y+1) ])
-            below_line = LineString([ (p1_x, y-1), (p2_x, y-1) ])
-            non_monotone_sweep_lines.append( (above_line, intersection_points, gap_severity) )
-            non_monotone_sweep_lines.append( (below_line, intersection_points, gap_severity) )
-
-            non_monotone_in_y = True
-
-
-    # go through all vertical sweep lines:
-    p1_y = 0
-    p2_y = grid.shape[0]
-    for x in range(grid.shape[1]):
-        intersection_points = []
-        # check intersection with grid by going through the sweep line and check for 1-->0 or 0-->1 transitions
-        val = 0
-        for y in range(grid.shape[0]):
-            cell_val = grid[y][x]
-            if cell_val != val:
-                # transition detected
-                intersection_points.append( (y,x) )
-                val = cell_val
-        
-        #print(f"leng: {len(intersection_points)}")
-        if len(intersection_points) > 2:
-            # Sweep line is does not pass criteria! (its intersecting non-monotone sections)
-            sweep_line = LineString([ (x, p1_y), (x, p2_y) ])
-            gap_severity = 0
-            for i in range(1, len(intersection_points)-1, 2):
-                start_pt = intersection_points[i]
-                end_pt = intersection_points[i+1]
-                gap_severity += abs(end_pt[1] - start_pt[1]) # x coordinate difference
-
-            above_line = LineString([ (p1_x, y+1), (p2_x, y+1) ])
-            below_line = LineString([ (p1_x, y-1), (p2_x, y-1) ])
-            non_monotone_sweep_lines.append( (above_line, intersection_points, gap_severity) )
-            non_monotone_sweep_lines.append( (below_line, intersection_points, gap_severity) )
-
-            non_monotone_in_x = True
-
-    is_irregular = non_monotone_in_x and non_monotone_in_y
-
-    return non_monotone_sweep_lines, is_irregular
 
 
 def main(args=None) -> None:
@@ -428,7 +406,7 @@ def main(args=None) -> None:
 
         grid = grid_queue.popleft()
 
-        non_monotone_sweep_lines, grid_is_irregular = scan_for_non_monotone_sections(grid)
+        non_monotone_sweep_lines, grid_is_irregular, _, _ = scan_for_non_monotone_sections(grid)
 
 
         # Check if "polygon" is irregular (i.e., non–monotone in both directions)
@@ -454,27 +432,11 @@ def main(args=None) -> None:
             banned_sweep_lines.append(selected_sweep_line)
             print(f"Selected sweep line for splitting: {selected_sweep_line}")
 
-
             # Split grid along selected sweep line
             sub_grids = split_grid_along_sweep_line(grid, selected_sweep_line)
 
             if len(regular_grids_result) == 44:
                 _plot_grid(grid, "Original grid to split")
-
-            # # Print grid to process visually for debugging
-            # plt.imshow(grid, cmap='Greys', origin='lower', alpha=0.5)
-            # plt.title("Original grid to split")
-            # plt.show()
-
-            # # Print sub-grids visually for debugging
-            # for i, sub_grid in enumerate(sub_grids):
-            #     plt.imshow(sub_grid, cmap='Greys', origin='lower', alpha=0.5)
-            #     plt.title(f"Sub-grid {i+1}")
-            #     plt.show()
-
-            # TODO ISSUE. Når den (anden gang) skal process top griddet, finde den samme sweel line som tidligere.. fordi det er den samme pixels med stor gap (fordi den evaller i midten af pixelene - aka det noget med hvor man splitter? og det er over eller under.. men det skal kunne virke i begge retninger..)
-            # Når det er løst, kan vi måske også fjerne filtered_sub_grids[] halløjet igen.
-            # måske kan man løse det med: en ban liste af sweep lines der allerede er taget tidligere.
 
             print(f"Split grid into {len(sub_grids)} sub-grids along sweep line")
 
@@ -487,21 +449,18 @@ def main(args=None) -> None:
             regular_grids_result.append(grid)
 
 
-    # After processing all grids, perform culling/merging step # TODO
+    # After processing all grids, perform culling/merging step 
     culling_merged_grids = culling_merging(regular_grids_result)
-    #culling_merged_grids = regular_grids_result
+
+    # Plot the resulting sub-grids
+    plot_subgrid(fly_grid, culling_merged_grids, plot_paths=True)
 
 
-    # ## TODO FOR DEBUGGING
-    # path, path_len, start_cell, end_cell, turn_count  = lawnmower(culling_merged_grids[2], start_corner='nw', direction='horizontal')
-    # print(f"LAWN MOWER PATH LEN: {path_len}, turns: {turn_count}, start: {start_cell}, end: {end_cell}")
 
 
-    ## DEBUGGING END
 
+def plot_subgrid(fly_grid: np.ndarray, culling_merged_grids: list, plot_paths: bool = True):
 
-    # PLOTTING MADE USING AI:
-    ALSO_PLOT_PATH = True
 
     print (f"Decomposition resulted in {len(culling_merged_grids)} regular sub-polygons")
     # Plot all the regular sub-polygons with at most 5 subplots per row (multiple rows allowed)
@@ -520,10 +479,10 @@ def main(args=None) -> None:
             axs[i].imshow(sub_grid, cmap='Oranges', origin='lower', alpha=0.8, vmin=0, vmax=1)
             axs[i].set_title(f"Regular sub-grid {i+1} (overlay on original)")
 
-            if ALSO_PLOT_PATH == True:
+            if plot_paths == True:
                 # Attempt to compute and plot a lawnmower path for this sub-grid for debugging.
                 try:
-                    path, path_len, start_cell, end_cell, turn_count = lawnmower(sub_grid, start_corner='nw', direction='horizontal')
+                    path, path_len, start_cell, end_cell, turn_count = lawnmower(sub_grid, start_corner='nw', direction='vertical')
                     if path_len > 0:
                         xs = [p[1] for p in path]  # x coordinates for plotting
                         ys = [p[0] for p in path]  # y coordinates for plotting
@@ -543,27 +502,8 @@ def main(args=None) -> None:
         plt.tight_layout()
         plt.show()
 
-    
-    
 
-    #print(f"Selected sweep line for splitting: {selected_sweep_line} with gap severity {max_gap_severity}")
 
-    # # Plot grid and sweep lines for visualization:
-    # plt.imshow(fly_grid, cmap='Greys', origin='lower')
-    # # for sweep_line, points in non_monotone_sweep_lines:
-    # #     x_coords = [p[1] for p in points]
-    # #     plt.plot(x_coords, [sweep_line.y] * len(x_coords), color='red')
-    # plt.show()
-
-    # # Now process the non-monotone sweep lines to find the actual non-monotone sections
-    # non_monotone_sections = []
-    # for sweep_line, points in non_monotone_sweep_lines:
-    #     points.sort(key=lambda p: p[0])  # Sort by x coordinate
-    #     for i in range(len(points)-1):
-    #         current_end = points[i+1]
-    #         next_start = points[i+2] if i+2 < len(points) else None
-    #         if next_start is not None and next_start < current_end:
-    #             non_monotone_sections.append((sweep_line, current_end, next_start)) # (sweep line, current end, next start)
 
 if __name__ == '__main__':
     main()

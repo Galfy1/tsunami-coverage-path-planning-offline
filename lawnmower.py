@@ -1,10 +1,11 @@
+import math
 import numpy as np
+from scan_for_non_monotone_sections import scan_for_non_monotone_sections
 
 
 def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizontal'):
-
-
     # implement lawnmower path generation for the given grid
+
 
     # TODO Gør, så når man lawnmover, tjekker den gridded om det er mononome i en retning.
 	#hvis den er monoton i et retning, kan den ikke lave simple lawnmover (uden potentielt at have missed area... som ville kræve path planning (e.g. A*) for at "backpropegate" ud af stuck, hen til den tætteste missed cell. samtilidgt vil det også betyde revisisted cells.. hvilket er ineffektivt)
@@ -20,6 +21,14 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
         raise ValueError("Invalid direction for lawnmower path. Use 'horizontal' or 'vertical'.")
     if start_corner not in ['nw', 'ne', 'sw', 'se']:
         raise ValueError("Invalid start corner. Use 'nw', 'ne', 'sw', or 'se'.")
+    
+
+    # Check if grid is suitable for lawnmower path
+    _, _, non_monotone_in_x, non_monotone_in_y = scan_for_non_monotone_sections(grid)
+    if (direction == 'horizontal' and non_monotone_in_y) or (direction == 'vertical' and non_monotone_in_x):
+        print("WARNING: The provided grid is not suitable for simple lawnmower path in the chosen direction due to non-monotonicity.")
+        return None, float('inf'), None, None, float('inf')
+
 
     # Find the starting cell
     def find_start_cell(grid, start_corner, direction):
@@ -241,5 +250,10 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
             break
 
     end_cell = (y, x)
-    path_len = len(path)
-    return path, path_len, start_cell, end_cell, turn_count
+
+    # Compute the Euclidean distance of the path
+    path_len_euclidean = sum(math.dist(path[i], path[i + 1]) for i in range(len(path) - 1))
+
+    print(f"Lawnmower path generated with {len(path)} cells, {turn_count} turns, and Euclidean length {path_len_euclidean:.2f}.")
+
+    return path, path_len_euclidean, start_cell, end_cell, turn_count

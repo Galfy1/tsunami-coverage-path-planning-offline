@@ -384,6 +384,13 @@ def _grid_area(grid):
     # compute area of grid (number of flyable cells)
     return np.sum(grid == 1)
 
+def _remove_grids_from_list(grid_list: List[np.ndarray], grids_to_remove: List[np.ndarray]):
+    filtered_grids = []
+    for grid in grid_list:
+        if grid not in grids_to_remove:
+            filtered_grids.append(grid)
+    return filtered_grids
+
 
 def path_plan_swarm(all_sub_grids, uav_count):
     # (note: "sub-grids" and "partitions" are used interchangeably here)
@@ -392,37 +399,68 @@ def path_plan_swarm(all_sub_grids, uav_count):
 
     path_per_uav = []
 
-    sub_grids_left = all_sub_grids.copy() # (used if len(all_sub_grids) > uav_count)
+    sub_grids_left = all_sub_grids.copy() 
 
     while True:
 
-        if len(all_sub_grids) == uav_count:
+        if len(sub_grids_left) == uav_count:
             # simply assign one partition per UAV
-            for grid in all_sub_grids:
+            for grid in sub_grids_left:
                 path, _, _, _ = one_uav_single_partition_path_plan(grid)
                 path_per_uav.append(path)
-            return path_per_uav
+            break # all UAVs assigned
 
-        elif len(all_sub_grids) < uav_count:
+        elif len(sub_grids_left) < uav_count:
             # Not enough partitions, need to split some
-            # TODO implement splitting logic. append til path_per_uav
-            return path_per_uav
+            # We split the largest partitions (by area) until we have enough (the resulting partitions will still be "regular")
+
+            ########## STEP 1: Find largest partition ##########
+            largest_partition = max(sub_grids_left, key=_grid_area)
+
+            ########## STEP 2: Find sweep line that splits it best (in terms of area balance) ##########
+            # scan for monotone sweep lines
+            monotone_sweep_lines, _, _, _ = scan_for_non_monotone_sections(largest_partition)
+            # find best sweep line that splits the partition into two sub-partitions with most balanced area
+            # (we only split at monotone sweep lines - to avoid splitting a single partition into more than two partitions)
+            best_sweep_line = None
+            best_area_balance = float('inf')
+            for sweep_line, _ , _ in monotone_sweep_lines:
+                # split partition along sweep line
+                sub_partitions = split_grid_along_sweep_line(largest_partition, sweep_line)
+                if len(sub_partitions) != 2:
+                    continue # just to make sure. (we only want to split into two partitions)
+
+                area1 = _grid_area(sub_partitions[0])
+                area2 = _grid_area(sub_partitions[1])
+                area_balance = abs(area1 - area2)
+                if area_balance < best_area_balance:
+                    best_area_balance = area_balance
+                    best_sweep_line = sweep_line
+
+            ########## STEP 3: Split the largest partition along the best sweep line ##########
+            if best_sweep_line is not None:
+                sub_partitions = split_grid_along_sweep_line(largest_partition, best_sweep_line)
+                # Update sub_grids_left - replace the largest partition with the new partitions:
+                sub_grids_left = _remove_grids_from_list(sub_grids_left, [largest_partition])
+                sub_grids_left.extend(sub_partitions)
+            else:
+                raise ValueError("Could not find a valid sweep line to split the largest partition")
+
+            ########## STEP 4: Break ##########
+            break # (the rest of the logic is handled in the next iteration of the while loop) 
+
+
         
-        elif len(all_sub_grids) > uav_count:
+        elif len(sub_grids_left) > uav_count:
             # Too many partitions, one/more UAVs need to cover multiple partitions
 
-            
-            
-
-
-
-            max_partitions_per_uav = math.ceil(len(all_sub_grids_temp) / uav_count)
+            partition_count_for_uav = math.ceil(len(sub_grids_left) / uav_count)
 
             ########## STEP 1: Find best adjacent combinations of partitions for each UAV (best = smallest combined area) ##########
-            
-            # find all possible adjacent combinations of partitions of size max_partitions_per_uav (adjecent = "chain" adjacentcy is allowed)
+
+            # find all possible adjacent combinations of partitions of size partition_count_for_uav (adjecent = "chain" adjacentcy is allowed)
             combo_with_smallest_area = None
-            for combination in itertools.combinations(range(len(all_sub_grids)), max_partitions_per_uav): # (combination holds a list of indexes into all_sub_grids)
+            for combination in itertools.combinations(range(len(all_sub_grids)), partition_count_for_uav): # (combination holds a list of indexes into all_sub_grids)
                 # check if all partitions in combination are adjacent
                 all_adjacent = True
 
@@ -443,31 +481,24 @@ def path_plan_swarm(all_sub_grids, uav_count):
                     if combo_with_smallest_area is None or total_area < combo_with_smallest_area[1]:
                         combo_with_smallest_area = (combination, total_area)
 
-            # TODO så skal vi fjerne dem fra søge poolen og gøre det igen.. indtil noget med størrelsen . tjek også lige hvad den der max_partitions_per_uav bruges til
-
-            
 
             ########## STEP 2: For each UAV, plan path over assigned partitions ##########
 
             # one_uav_multi_partitions_path_plan skal bruges her blandt andet
             if combo_with_smallest_area is not None:
                 best_combination = combo_with_smallest_area[0]
-                best_partitions = [all_sub_grids[i] for i in best_combination]
+                best_partitions = [all_sub_grids[i] for i in best_combination] # (remember, best_combination holds indexes into all_sub_grids)
                 path = one_uav_multi_partitions_path_plan(best_partitions)
                 path_per_uav.append(path)
-
-
-        
-
-    #return path_per_uav
-
-
-def split_grid_with_disconnected_sections(grid: np.ndarray):
-    # check for disconnected sections in the grid and split into multiple sub-grids if found
-
-    disconnected_sections = []
+            else :
+                raise ValueError("Could not find adjacent partition combination for UAV assignment") # this should not happen
+            
+            ########## STEP 3: Remove assigned partitions from sub_grids_left ##########
+            grids_to_remove = [all_sub_grids[i] for i in best_combination]
+            sub_grids_left = _remove_grids_from_list(sub_grids_left, grids_to_remove)
 
     return path_per_uav
+
     
     
 

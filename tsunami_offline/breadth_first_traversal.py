@@ -2,7 +2,8 @@ from collections import deque as queue
 import numpy as np
 import math
 from shapely.geometry import Point, LineString, Polygon
-from custom_cell_tools import is_cell_valid, dx_4way, dy_4way, dx_8way, dy_8way
+
+from shared_tools.custom_cell_tools import is_cell_valid, dx_4way, dy_4way, dx_8way, dy_8way
 
 # BASED ON https://www.geeksforgeeks.org/dsa/breadth-first-traversal-bfs-on-a-2d-array/
 

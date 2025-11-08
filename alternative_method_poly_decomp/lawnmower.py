@@ -1,6 +1,6 @@
 import math
 import numpy as np
-from scan_for_monotonicity import scan_for_non_monotone_sections
+from alternative_method_poly_decomp.scan_for_monotonicity import scan_for_non_monotone_sections
 
 
 def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizontal'):

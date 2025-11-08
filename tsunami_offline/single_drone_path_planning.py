@@ -2,8 +2,9 @@ from collections import deque as queue
 import numpy as np
 import math
 from shapely.geometry import Point, LineString, Polygon
-from breadth_first_traversal import breadth_first_traversal
-from custom_cell_tools import is_cell_valid, dx_4way, dy_4way, dx_8way, dy_8way
+
+from tsunami_offline.breadth_first_traversal import breadth_first_traversal
+from shared_tools.custom_cell_tools import is_cell_valid, dx_4way, dy_4way, dx_8way, dy_8way
 
 
 

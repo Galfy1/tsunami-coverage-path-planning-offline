@@ -7,17 +7,22 @@ from shapely.geometry import Polygon, Point, LineString
 import numpy as np
 import math
 from collections import deque as queue
-from custom_cell_tools import dx_4way, dy_4way, dx_8way, dy_8way
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import itertools
 from typing import List
 import pickle
+import os
+import sys
 
-# reuse code from offline_phase.py
-from offline_phase import create_grid_from_polygon_and_noflyzones
-from lawnmower import lawnmower
-from scan_for_monotonicity import scan_for_non_monotone_sections, scan_for_monotone_sections
+# Add the parent directory to the path (for our imports)
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Our imports
+from shared_tools.custom_cell_tools import dx_4way, dy_4way, dx_8way, dy_8way
+from shared_tools.create_grid_from_poly import create_grid_from_polygon_and_noflyzones
+from alternative_method_poly_decomp.lawnmower import lawnmower
+from alternative_method_poly_decomp.scan_for_monotonicity import scan_for_non_monotone_sections, scan_for_monotone_sections
 
 
 #DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
@@ -660,7 +665,7 @@ def main(args=None) -> None:
     # TODO irregular_poly
     # TODO totally_mono.py
     # TODO paper_recreate.poly
-    with open('paper_recreate.poly','r') as f: 
+    with open('alternative_method_poly_decomp/paper_recreate.poly','r') as f: 
         reader = csv.reader(f,delimiter=' ')
         for row in reader:
             if(row[0] == '#saved'): continue # skip header

@@ -11,6 +11,7 @@ from custom_cell_tools import dx_4way, dy_4way, dx_8way, dy_8way
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import itertools
+from typing import List
 
 # reuse code from offline_phase.py
 from offline_phase import create_grid_from_polygon_and_noflyzones
@@ -286,19 +287,18 @@ def compute_internal_path_losses(candidate_list, alpha = 0.5, len_tolerance = 10
 
 
 
-def one_uav_multi_partitions_path_plan(all_sub_grids):
+def one_uav_multi_partitions_path_plan(sub_grids: List[np.ndarray]):
     # (note: "sub-grids" and "partitions" are used interchangeably here)
 
     ######### STEP 1: For each partition, generate all candidate lawnmower paths (and compute internal losses for each candidate) #########
 
     start_corners = ['nw', 'ne', 'sw', 'se']
     directions = ['horizontal', 'vertical']
-    final_paths = []
 
     all_candidates_per_partition = [] # list of lists. each sub-list contains all valid candidates for that partition
 
     # Generate all candidates for each sub-grid
-    for partition in all_sub_grids:
+    for partition in sub_grids:
         candidate_list = []
         for corner in start_corners:
             for direction in directions:
@@ -349,7 +349,40 @@ def one_uav_multi_partitions_path_plan(all_sub_grids):
     print(f"Best total cost: {best_loss:.2f}")
     return best_path, start_cell, end_cell, best_loss
 
+def one_uav_single_partition_path_plan(grid: np.ndarray):
+    # # Simple lawnmower path for single partition
+    
+    start_corners = ['nw', 'ne', 'sw', 'se']
+    directions = ['horizontal', 'vertical']
 
+    candidate_list = []
+    for corner in start_corners:
+        for direction in directions:
+            path, path_len, start_cell, end_cell, turn_count = lawnmower(
+                grid, start_corner=corner, direction=direction
+            )
+            if path is not None:
+                candidate_list.append({
+                    'path': path,
+                    'path_len_euclidean': path_len,
+                    'start_cell': start_cell,
+                    'end_cell': end_cell,
+                    'turn_count': turn_count,
+                    'internal_loss': None
+                })
+
+    # Compute internal losses for this partition’s candidates
+    candidate_list = compute_internal_path_losses(candidate_list)
+
+    # find best candidate
+    best_candidate = min(candidate_list, key=lambda c: c['internal_loss'])
+    
+    # return best path and associated info
+    return best_candidate['path'], best_candidate['start_cell'], best_candidate['end_cell'], best_candidate['internal_loss']
+
+def _grid_area(grid):
+    # compute area of grid (number of flyable cells)
+    return np.sum(grid == 1)
 
 
 def path_plan_swarm(all_sub_grids, uav_count):
@@ -357,19 +390,84 @@ def path_plan_swarm(all_sub_grids, uav_count):
 
     # TODO !!!!!! HUSK LIGE DEN DER 1px FEJL DER !!!!
 
-    # TODO den skal returne noget
-    if len(all_sub_grids) == uav_count:
-        # todo 
-        pass
-    elif len(all_sub_grids) < uav_count:
-        # Not enough partitions, need to split some
-        # TODO implement splitting logic
-        pass
-    elif len(all_sub_grids) > uav_count:
-        # Too many partitions, need to merge some
-        # TODO implement merging logic
-        # one_uav_multi_partitions_path_plan skal bruges her blandt andet
-        pass
+    path_per_uav = []
+
+    sub_grids_left = all_sub_grids.copy() # (used if len(all_sub_grids) > uav_count)
+
+    while True:
+
+        if len(all_sub_grids) == uav_count:
+            # simply assign one partition per UAV
+            for grid in all_sub_grids:
+                path, _, _, _ = one_uav_single_partition_path_plan(grid)
+                path_per_uav.append(path)
+            return path_per_uav
+
+        elif len(all_sub_grids) < uav_count:
+            # Not enough partitions, need to split some
+            # TODO implement splitting logic. append til path_per_uav
+            return path_per_uav
+        
+        elif len(all_sub_grids) > uav_count:
+            # Too many partitions, one/more UAVs need to cover multiple partitions
+
+            
+            
+
+
+
+            max_partitions_per_uav = math.ceil(len(all_sub_grids_temp) / uav_count)
+
+            ########## STEP 1: Find best adjacent combinations of partitions for each UAV (best = smallest combined area) ##########
+            
+            # find all possible adjacent combinations of partitions of size max_partitions_per_uav (adjecent = "chain" adjacentcy is allowed)
+            combo_with_smallest_area = None
+            for combination in itertools.combinations(range(len(all_sub_grids)), max_partitions_per_uav): # (combination holds a list of indexes into all_sub_grids)
+                # check if all partitions in combination are adjacent
+                all_adjacent = True
+
+                adjacentcies = [False] * len(combination) # each partition has an entry in this list. True = found atleast 1 adjacent partition, False = no adjacent partition found
+                for i in range (len(combination)): # for each partition
+                    for j in range(len(combination)): # check all other partitions
+                        # skip self-comparison:
+                        if i == j: 
+                            continue
+                        if are_grids_adjacent(all_sub_grids[combination[i]], all_sub_grids[combination[j]]):
+                            adjacentcies[i] = True
+                            break # no need to check other partitions for this one
+
+                # if an adjacency chain exists (i.e., all partitions have at least one adjacent partition)
+                if all(adjacentcies):
+                    # compute total area of this combination
+                    total_area = sum(_grid_area(all_sub_grids[i]) for i in combination)
+                    if combo_with_smallest_area is None or total_area < combo_with_smallest_area[1]:
+                        combo_with_smallest_area = (combination, total_area)
+
+            # TODO så skal vi fjerne dem fra søge poolen og gøre det igen.. indtil noget med størrelsen . tjek også lige hvad den der max_partitions_per_uav bruges til
+
+            
+
+            ########## STEP 2: For each UAV, plan path over assigned partitions ##########
+
+            # one_uav_multi_partitions_path_plan skal bruges her blandt andet
+            if combo_with_smallest_area is not None:
+                best_combination = combo_with_smallest_area[0]
+                best_partitions = [all_sub_grids[i] for i in best_combination]
+                path = one_uav_multi_partitions_path_plan(best_partitions)
+                path_per_uav.append(path)
+
+
+        
+
+    #return path_per_uav
+
+
+def split_grid_with_disconnected_sections(grid: np.ndarray):
+    # check for disconnected sections in the grid and split into multiple sub-grids if found
+
+    disconnected_sections = []
+
+    return path_per_uav
     
     
 

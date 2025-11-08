@@ -9,6 +9,7 @@ import math
 from collections import deque as queue
 from custom_cell_tools import dx_4way, dy_4way, dx_8way, dy_8way
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 import itertools
 
 # reuse code from offline_phase.py
@@ -17,8 +18,8 @@ from lawnmower import lawnmower
 from scan_for_non_monotone_sections import scan_for_non_monotone_sections
 
 
-DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
-#DRONE_START = (56.1672192716924, 10.152786411345) # for "paper_recreate.poly"
+#DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
+DRONE_START = (56.1672192716924, 10.152786411345) # for "paper_recreate.poly"
 CAMERA_COVERAGE_LEN = 1 # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
 
 
@@ -219,24 +220,6 @@ def culling_merging(all_sub_grids):
 
 
 
-# # (see paper for loss function definition)
-# def compute_total_path_losses(candidate_list):
-
-#     first_term = sum(c['internal_loss'] for c in candidate_list)
-
-#     second_term = 0
-#     for i in range(0, len(candidate_list)-1):
-#         end_cell_current = candidate_list[i]['end_cell']
-#         start_cell_next = candidate_list[i+1]['start_cell']
-#         # euclidean distance between end cell of current and start cell of next
-#         dist = np.linalg.norm(np.array(end_cell_current) - np.array(start_cell_next))
-#         second_term += dist
-    
-#     total_cost = first_term + second_term
-
-#     # TODO OPTIMIZATION HALLØJ
-
-#     return total_cost 
 
 
 # def total_cost(candidate_list, order):
@@ -261,215 +244,133 @@ def culling_merging(all_sub_grids):
 #     return best_order, best_cost
 
 
+
 # (see paper for loss function definition)
-# def compute_internal_path_losses(candidate_list, alpha = 1.0, len_tolerance = 10): # TODO find en okay default alpha og turn tol
+def compute_total_path_loss(candidate_per_partition):
 
-#     for candidate in candidate_list:
-#         turn_count = candidate['turn_count']
+    first_term = sum(c['internal_loss'] for c in candidate_per_partition)
 
-#         # first term: path length
-#         first_term = candidate['path_len_euclidean']
-
-#         # second term: turns (if any other candidate has similar path length)
-#         valid_turn_counts = []
-#         for candidate_other in candidate_list:
-#             if abs(candidate_other['path_len_euclidean']-first_term) < len_tolerance:
-#                 valid_turn_counts.append(candidate_other['turn_count'])
-#         second_term = turn_count - (min(valid_turn_counts) if valid_turn_counts else 0)
-#         second_term = alpha * max(0, second_term)
-
-#         candidate['internal_loss'] = first_term + second_term
-
-#     return candidate_list
-
-
-def multi_partition_path_loss(candidate_list, alpha = 1.0, len_tolerance = 10): # TODO find en okay default alpha og turn tol
+    second_term = 0
+    for i in range(0, len(candidate_per_partition)-1):
+        end_cell_current = candidate_per_partition[i]['end_cell']
+        start_cell_next = candidate_per_partition[i+1]['start_cell']
+        # euclidean distance between end cell of current and start cell of next
+        dist = np.linalg.norm(np.array(end_cell_current) - np.array(start_cell_next))
+        second_term += dist
     
-    # VORES FUNKTION INPUT ER (dem vi skal brute force alle kombinationer af):
-        # en liste med candidate. hver candidate har input variabler vi skal tjekke alle kombinationer af.
+    total_cost = first_term + second_term
 
-    # TODO UPS DET SKAL LAVES LIDT OM..
-        # INPUTTET ER: en liste med partitions, der hver har en liste med candidate paths!
-        # det lidt svært af finde rundt i hvad der er partition og hvad der er candidate path..
-        # og vi skal også account for partition order? gg
+    return total_cost 
 
 
-    # hver canddiate har :
-    #{
-    #'path': path, # hmm den her skal ikke bruges som input... 
-    #'path_len_euclidean': path_len_euclidean,
-    #'start_cell': start_cell,
-    #'end_cell': end_cell,
-    #'turn_count': turn_count,
-    #}
+#(see paper for loss function definition)
+def compute_internal_path_losses(candidate_list, alpha = 0.5, len_tolerance = 10): # TODO find en okay default alpha og turn tol
 
-
-    ########## Compute internal path losses ##########
-    internal_losses = []
     for candidate in candidate_list:
         turn_count = candidate['turn_count']
 
         # first term: path length
-        first_term_internal = candidate['path_len_euclidean']
+        first_term = candidate['path_len_euclidean']
 
         # second term: turns (if any other candidate has similar path length)
         valid_turn_counts = []
         for candidate_other in candidate_list:
-            if abs(candidate_other['path_len_euclidean']-first_term_internal) < len_tolerance:
+            if abs(candidate_other['path_len_euclidean']-first_term) < len_tolerance:
                 valid_turn_counts.append(candidate_other['turn_count'])
-        second_term_internal = turn_count - (min(valid_turn_counts) if valid_turn_counts else 0)
-        second_term_internal = alpha * max(0, second_term_internal)
+        second_term = turn_count - (min(valid_turn_counts) if valid_turn_counts else 0)
+        second_term = alpha * max(0, second_term)
 
-        internal_losses.append(first_term_internal + second_term_internal)
+        candidate['internal_loss'] = first_term + second_term
 
-
-    ########## Compute total path loss ##########
-    first_term_total = sum(internal_losses)
-
-    second_term_total = 0
-    for i in range(0, len(candidate_list)-1):
-        end_cell_current = candidate_list[i]['end_cell']
-        start_cell_next = candidate_list[i+1]['start_cell']
-        # euclidean distance between end cell of current and start cell of next
-        dist = np.linalg.norm(np.array(end_cell_current) - np.array(start_cell_next))
-        second_term_total += dist
-
-    total_cost = first_term_total + second_term_total
-
-    return total_cost
-
-    # usefra skal vi kalde multi_partition_path_loss en masse gange med alle input variationer.
-    #   og se hvem der giver mindste loss. hver gang der er en kombination der slår mindste loos rekorden, så gem den candidate_list vi bruge som input til den
-    # Når vi til sidste har fundet den mindste loss, er det candidate_list der gav den loss som har svaret! med hivlket kombination der er bedst!
+    return candidate_list
 
 
 
+def one_uav_multi_partitions_path_plan(all_sub_grids):
+    # (note: "sub-grids" and "partitions" are used interchangeably here)
 
-# def brute_force_evaluation(all_candidates_per_grid):
+    ######### STEP 1: For each partition, generate all candidate lawnmower paths (and compute internal losses for each candidate) #########
 
+    start_corners = ['nw', 'ne', 'sw', 'se']
+    directions = ['horizontal', 'vertical']
+    final_paths = []
 
+    all_candidates_per_partition = [] # list of lists. each sub-list contains all valid candidates for that partition
 
-# def path_plan_swarm(all_sub_grids, uav_count):
-#     start_corners = ['nw', 'ne', 'sw', 'se']
-#     directions = ['horizontal', 'vertical']
-#     final_paths = []
-
-#     all_candidates_per_grid = []
-
-#     # Step 1: Generate all candidates for each sub-grid
-#     for sub_grid in all_sub_grids:
-#         candidate_list = []
-#         for corner in start_corners:
-#             for direction in directions:
-#                 path, path_len_euclidean, start_cell, end_cell, turn_count = lawnmower(
-#                     sub_grid, start_corner=corner, direction=direction
-#                 )
-#                 if path is not None:
-#                     candidate_list.append({
-#                         'path': path,
-#                         'path_len_euclidean': path_len_euclidean,
-#                         'start_cell': start_cell,
-#                         'end_cell': end_cell,
-#                         'turn_count': turn_count,
-#                         'internal_loss': None
-#                     })
-#         # Compute internal losses for this grid’s candidates
-#         candidate_list = compute_internal_path_losses(candidate_list)
-#         all_candidates_per_grid.append(candidate_list)
-
-#     # Step 2: Generate all possible combinations across grids
-#     # (Cartesian product of candidate options per grid)
-#     all_combinations = itertools.product(*all_candidates_per_grid)
-
-#     # Step 3: Brute-force evaluation
-#     best_combination = None
-#     best_cost = float('inf')
-
-#     for combo in all_combinations:
-#         combo_list = list(combo)
-#         cost = compute_total_path_losses(combo_list)
-#         if cost < best_cost:
-#             best_cost = cost
-#             best_combination = combo_list
-
-#     # Step 4: Store best result
-#     final_paths = [c['path'] for c in best_combination]
-
-#     print("final path example:", final_paths[0] if final_paths else "No paths")
-#     print(f"✅ Best total cost: {best_cost:.2f}")
-#     return final_paths, best_cost
+    # Generate all candidates for each sub-grid
+    for partition in all_sub_grids:
+        candidate_list = []
+        for corner in start_corners:
+            for direction in directions:
+                path, path_len_euclidean, start_cell, end_cell, turn_count = lawnmower(
+                    partition, start_corner=corner, direction=direction
+                )
+                if path is not None:
+                    candidate_list.append({
+                        'path': path,
+                        'path_len_euclidean': path_len_euclidean,
+                        'start_cell': start_cell,
+                        'end_cell': end_cell,
+                        'turn_count': turn_count,
+                        'internal_loss': None
+                    })
+        # Compute internal losses for this partition’s candidates
+        candidate_list = compute_internal_path_losses(candidate_list)
+        all_candidates_per_partition.append(candidate_list)
 
 
+    ######### STEP 2: Brute-force evaluation to find best combination (and order) of candidates across all partitions #########
 
-# def select_best_path_among_candidates(candidate_list: list):
+    best_loss = float('inf')
+    best_combination = None
 
-#     # (use loss function from paper)
 
-#     # calculate loss for each candidate:
-#     for candidate in candidate_list:
-#         candidate['internal_loss'] = path_loss(candidate['path'], candidate['start_cell'], candidate['end_cell'], candidate['turn_count'])
+    # Try every permutation of partition order
+    for order in itertools.permutations(range(len(all_candidates_per_partition))): # .permutations: generates all possible ordered arrangements of a given iterable (see https://www.geeksforgeeks.org/python/python-itertools-permutations/)
+        ordered_partitions = [all_candidates_per_partition[i] for i in order]
 
-#     # # select the best candidate based on the lowest loss
-#     # best_candidate = min(candidate_list, key=lambda x: x['loss']) # TODO check if this is correct
+        # Try every combination (one candidate per partition)
+        for combo in itertools.product(*ordered_partitions): # itertools.product: produces all possible combinations of input iterables (see https://www.geeksforgeeks.org/python/python-itertools-product/)
+            total_loss = compute_total_path_loss(combo)
+            if total_loss < best_loss:
+                best_loss = total_loss
+                best_combination = combo
 
-#     # return best_candidate
+    ######### STEP 3: Output final paths from best combination (in the best order) #########
+
+    # Build the final concatenated path
+    best_path = []
+    for cand in best_combination:
+        best_path.extend(cand['path'])  # assume cand['path'] is a list of coordinates
+    start_cell = best_combination[0]['start_cell']
+    end_cell = best_combination[-1]['end_cell']
+
+    print("final path example:", best_path[0] if best_path else "No paths")
+    print(f"Best total cost: {best_loss:.2f}")
+    return best_path, start_cell, end_cell, best_loss
 
 
 
-# def path_plan_swarm(all_sub_grids, uav_count):
-#     # Match the number of partitions to the number of UAVs
 
-#     final_paths = []
+def path_plan_swarm(all_sub_grids, uav_count):
+    # (note: "sub-grids" and "partitions" are used interchangeably here)
+
+    # TODO !!!!!! HUSK LIGE DEN DER 1px FEJL DER !!!!
+
+    # TODO den skal returne noget
+    if len(all_sub_grids) == uav_count:
+        # todo 
+        pass
+    elif len(all_sub_grids) < uav_count:
+        # Not enough partitions, need to split some
+        # TODO implement splitting logic
+        pass
+    elif len(all_sub_grids) > uav_count:
+        # Too many partitions, need to merge some
+        # TODO implement merging logic
+        # one_uav_multi_partitions_path_plan skal bruges her blandt andet
+        pass
     
-#     # if len(all_sub_grids) == uav_count:
-#     #     # Perfect match. simple select the best lawnmower path for each partition
-
-#     # Define all combinations of start corners and directions
-#     start_corners = ['nw', 'ne', 'sw', 'se']
-#     directions = ['horizontal', 'vertical']
-
-#     # For each sub-grid, generate all candidate paths:
-#     for sub_grid in all_sub_grids:
-#         candidate_list = []
-#         for corner in start_corners:
-#             for direction in directions:
-#                 path, path_len_euclidean, start_cell, end_cell, turn_count = lawnmower(
-#                     sub_grid, start_corner=corner, direction=direction
-#                 )
-#                 if path is not None:
-#                     candidate_list.append({
-#                         'path': path,
-#                         'path_len_euclidean': path_len_euclidean,
-#                         'start_cell': start_cell,
-#                         'end_cell': end_cell,
-#                         'turn_count': turn_count,
-#                         'internal_loss': None # to be computed later
-#                     })
-
-#     # Now, compute internal path losses for all candidates
-#     candidate_list = compute_internal_path_losses(candidate_list)
-
-#     best_order, best_cost = find_best_order(candidate_list)
-#     print("###############################################")
-#     print(best_order, best_cost)
-#     print("###############################################")
-
-
-#         # # Now select the best candidate for each sub-grid based on loss function
-#         # best_candidate = select_best_path_among_candidates(candidate_list)
-#         # final_paths.append(best_candidate)
-
-
-    
-#     # elif len(all_sub_grids) < uav_count:
-#     #     # Not enough partitions, need to split some
-#     #     # TODO implement splitting logic
-#     #     pass
-#     # elif len(all_sub_grids) > uav_count:
-#     #     # Too many partitions, need to merge some
-#     #     # TODO implement merging logic
-#     #     pass
-#     # return all_sub_grids 
     
 
 
@@ -568,7 +469,8 @@ def main(args=None) -> None:
     # TODO horizontal_nonmono_only
     # TODO irregular_poly
     # TODO totally_mono.py
-    with open('irregular_poly.poly','r') as f: 
+    # TODO paper_recreate.poly
+    with open('paper_recreate.poly','r') as f: 
         reader = csv.reader(f,delimiter=' ')
         for row in reader:
             if(row[0] == '#saved'): continue # skip header
@@ -643,18 +545,64 @@ def main(args=None) -> None:
     culling_merged_grids = culling_merging(regular_grids_result)
 
     # DEBUG
-    path_plan_swarm(culling_merged_grids, uav_count=3)
+    best_path_debug , start_cell, end_cell, _ = path_plan_swarm(culling_merged_grids, uav_count=3)
     # DEBUG END
 
     # Plot the resulting sub-grids
-    plot_subgrid(fly_grid, culling_merged_grids, plot_paths=True)
+    plot_subgrid(fly_grid, culling_merged_grids, plot_paths=True, best_path_debug=best_path_debug, start_cell=start_cell, end_cell=end_cell)
 
 
 
 
+def plot_subgrid(fly_grid: np.ndarray, culling_merged_grids: list, plot_paths: bool = True, best_path_debug=None, start_cell=None, end_cell=None):
 
-def plot_subgrid(fly_grid: np.ndarray, culling_merged_grids: list, plot_paths: bool = True):
+    n = len(culling_merged_grids)
+    print(f"Decomposition resulted in {n} regular sub-polygons")
 
+    fig, ax = plt.subplots(figsize=(8, 8))
+    #ax.imshow(fly_grid, cmap='Greys', origin='lower', alpha=0.3, vmin=0, vmax=1)
+
+    if n > 0:
+        combined = np.zeros_like(fly_grid, dtype=int)
+        for idx, sub_grid in enumerate(culling_merged_grids, start=1):
+            combined = np.where(sub_grid == 1, idx, combined)
+
+        base_cmap = plt.cm.get_cmap('tab20', n)
+        color_positions = np.linspace(0.2, 0.8, n)
+        colors = [(0, 0, 0, 0)] + [base_cmap(pos) for pos in color_positions]
+        cmap = ListedColormap(colors)
+
+        ax.imshow(combined, cmap=cmap, origin='lower', alpha=0.9, vmin=0, vmax=n)
+        ax.set_title("Regular sub-grids overlayed on original grid")
+
+    if plot_paths and best_path_debug:
+        xs = [p[1] for p in best_path_debug]
+        ys = [p[0] for p in best_path_debug]
+        ax.plot(xs, ys, color='black', linewidth=1.5, marker='o', markersize=3, label='path')
+
+        if start_cell is not None:
+            ax.scatter([start_cell[1]], [start_cell[0]], color='green', s=40, label='start')
+        if end_cell is not None:
+            ax.scatter([end_cell[1]], [end_cell[0]], color='red', s=40, label='end')
+
+        ax.legend(loc='upper right', fontsize='small')
+
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_aspect('equal')
+    plt.tight_layout()
+    plt.show()
+
+
+
+
+def _debug_plot_subgrid_individually(fly_grid: np.ndarray, culling_merged_grids: list, plot_paths: bool = True):
+
+    # if plot_paths is True, plot a fixed lawnmower path for each sub-grid for debugging (some sub-grids may not have valid paths with this fixed approach)
+
+    # fixed lawnmower parameters
+    start_corner = 'nw'
+    direction = 'vertical'
 
     print (f"Decomposition resulted in {len(culling_merged_grids)} regular sub-polygons")
     # Plot all the regular sub-polygons with at most 5 subplots per row (multiple rows allowed)
@@ -676,7 +624,7 @@ def plot_subgrid(fly_grid: np.ndarray, culling_merged_grids: list, plot_paths: b
             if plot_paths == True:
                 # Attempt to compute and plot a lawnmower path for this sub-grid for debugging.
                 try:
-                    path, path_len, start_cell, end_cell, turn_count = lawnmower(sub_grid, start_corner='nw', direction='vertical')
+                    path, path_len, start_cell, end_cell, turn_count = lawnmower(sub_grid, start_corner=start_corner, direction=direction)
                     if path_len > 0:
                         xs = [p[1] for p in path]  # x coordinates for plotting
                         ys = [p[0] for p in path]  # y coordinates for plotting

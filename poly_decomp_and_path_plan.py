@@ -12,17 +12,20 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 import itertools
 from typing import List
+import pickle
 
 # reuse code from offline_phase.py
 from offline_phase import create_grid_from_polygon_and_noflyzones
 from lawnmower import lawnmower
-from scan_for_non_monotone_sections import scan_for_non_monotone_sections
+from scan_for_monotonicity import scan_for_non_monotone_sections, scan_for_monotone_sections
 
 
 #DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
 DRONE_START = (56.1672192716924, 10.152786411345) # for "paper_recreate.poly"
 CAMERA_COVERAGE_LEN = 1 # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
+UAV_COUNT = 5
 
+ENABLE_PLOTTING = True
 
 
 # NOTE: All indexing of grids is done as (y,x) - to match lat, lon convention
@@ -391,6 +394,54 @@ def _remove_grids_from_list(grid_list, grids_to_remove):
             filtered_grids.append(grid)
     return filtered_grids
 
+# def will_subgrid_removal_split_main_grid(grid: np.ndarray, subgrids_to_remove: np.ndarray):
+#     # TODO er det her en god måde at gøre det på... det sikre ihvertfald at den der fejl ikke kan ske. men det er ikke optimialt, da ASD
+#     # VI ER I STEDET NØDT TIL AT tjekke split_subgrids resultatet.. for hvis den er over 1 kan den stadig være valid HVIS der er partition_count_for_uav i hvert splittet del
+
+#     # remove subgrid from main grid (we call the result "modified_grid" )
+#     modified_grid = np.copy(grid)
+#     for y in range(grid.shape[0]):
+#         for x in range(grid.shape[1]):
+#             for subgrid in subgrids_to_remove:
+#                 if subgrid[y][x] == 1:
+#                     modified_grid[y][x] = 0
+
+#     # we can use split_grid_with_disconnected_sections() to check if a split would occur
+#     split_subgrids = split_grid_with_disconnected_sections(modified_grid)
+#     if len(split_subgrids) > 1:
+#         return True
+#     else:
+#         return False
+
+    
+
+
+# find all adjacent combinations of partitions (sub-grids) of size partition_count
+def find_all_adjacent_partitions(grid, partition_count):
+    combo_and_area = []
+    for combination in itertools.combinations(range(len(grid)), partition_count): # (combination holds a list of indexes into all_sub_grids)
+        # check if all partitions in combination are adjacent
+        adjacentcies = [False] * len(combination) # each partition has an entry in this list. True = found atleast 1 adjacent partition, False = no adjacent partition found
+        for i in range (len(combination)): # for each partition
+            for j in range(len(combination)): # check all other partitions
+                # skip self-comparison:
+                if i == j: 
+                    continue
+                if are_grids_adjacent(grid[combination[i]], grid[combination[j]]):
+                    adjacentcies[i] = True
+                    break # no need to check other partitions for this one
+
+        # if an adjacency chain exists (i.e., all partitions have at least one adjacent partition)
+        if all(adjacentcies):
+
+            # compute total area of this combination
+            total_area = sum(_grid_area(grid[i]) for i in combination)
+            combo_and_area.append((combination, total_area))
+    
+    return combo_and_area
+
+
+
 def path_plan_swarm(all_sub_grids, uav_count):
     # (note: "sub-grids" and "partitions" are used interchangeably here)
 
@@ -399,17 +450,21 @@ def path_plan_swarm(all_sub_grids, uav_count):
     path_per_uav = []
 
     sub_grids_left = all_sub_grids.copy() 
+    uavs_left = uav_count
+    print("!!!!!!!!Initial subgrids len:", len(sub_grids_left))
 
     while len(sub_grids_left) > 0:
 
-        if len(sub_grids_left) == uav_count:
+        if len(sub_grids_left) == uavs_left:
+            print("XXXXXXXXXX")
             # simply assign one partition per UAV
             for grid in sub_grids_left:
                 path, _, _, _ = one_uav_single_partition_path_plan(grid)
                 path_per_uav.append(path)
             break # all UAVs assigned
 
-        elif len(sub_grids_left) < uav_count:
+        elif len(sub_grids_left) < uavs_left:
+            print("YYYYYYYYYY")
             # Not enough partitions, need to split some
             # We split the largest partitions (by area) until we have enough (the resulting partitions will still be "regular")
 
@@ -418,7 +473,7 @@ def path_plan_swarm(all_sub_grids, uav_count):
 
             ########## STEP 2: Find sweep line that splits it best (in terms of area balance) ##########
             # scan for monotone sweep lines
-            monotone_sweep_lines, _, _, _ = scan_for_non_monotone_sections(largest_partition)
+            monotone_sweep_lines, _, _, _ = scan_for_monotone_sections(largest_partition)
             # find best sweep line that splits the partition into two sub-partitions with most balanced area
             # (we only split at monotone sweep lines - to avoid splitting a single partition into more than two partitions)
             best_sweep_line = None
@@ -427,6 +482,7 @@ def path_plan_swarm(all_sub_grids, uav_count):
                 # split partition along sweep line
                 sub_partitions = split_grid_along_sweep_line(largest_partition, sweep_line)
                 if len(sub_partitions) != 2:
+                    #raise ValueError("Expected exactly two sub-partitions after split") # TODO
                     continue # just to make sure. (we only want to split into two partitions)
 
                 area1 = _grid_area(sub_partitions[0])
@@ -447,48 +503,63 @@ def path_plan_swarm(all_sub_grids, uav_count):
 
             # Continue loop to re-evaluate partition count
 
-        elif len(sub_grids_left) > uav_count:
+        elif len(sub_grids_left) > uavs_left:
             # Too many partitions, one/more UAVs need to cover multiple partitions
+            print("ZZZZZZZZZZZ")
 
-            partition_count_for_uav = math.ceil(len(sub_grids_left) / uav_count)
+            partition_count_for_uav = math.ceil(len(sub_grids_left) / uavs_left)
+
+            #more_multi_partition_uavs_needed = math.floor(len(sub_grids_left) / partition_count_for_uav)
 
             ########## STEP 1: Find best adjacent combinations of partitions for each UAV (best = smallest combined area) ##########
+            # Note: the combination also has to be "valid". 
+            # (here, "invalid" would meaning that if its removal from sub_grids_left would result in partitions that cannot form adjacent combinations for remaining UAVs)
 
-            # find all possible adjacent combinations of partitions of size partition_count_for_uav (adjecent = "chain" adjacentcy is allowed)
-            combo_with_smallest_area = None
-            for combination in itertools.combinations(range(len(sub_grids_left)), partition_count_for_uav): # (combination holds a list of indexes into all_sub_grids)
-                # check if all partitions in combination are adjacent
-                adjacentcies = [False] * len(combination) # each partition has an entry in this list. True = found atleast 1 adjacent partition, False = no adjacent partition found
-                for i in range (len(combination)): # for each partition
-                    for j in range(len(combination)): # check all other partitions
-                        # skip self-comparison:
-                        if i == j: 
-                            continue
-                        if are_grids_adjacent(sub_grids_left[combination[i]], sub_grids_left[combination[j]]):
-                            adjacentcies[i] = True
-                            break # no need to check other partitions for this one
+            all_combos_and_areas = find_all_adjacent_partitions(sub_grids_left, partition_count_for_uav)
 
-                # if an adjacency chain exists (i.e., all partitions have at least one adjacent partition)
-                if all(adjacentcies):
-                    # compute total area of this combination
-                    total_area = sum(_grid_area(sub_grids_left[i]) for i in combination)
-                    if combo_with_smallest_area is None or total_area < combo_with_smallest_area[1]:
-                        combo_with_smallest_area = (combination, total_area)
+            subsequent_1uav_multi_partition_coming = (len(sub_grids_left)-partition_count_for_uav) > (uavs_left-1)
 
+            valid_combo_with_smallest_area = None
+            while len(all_combos_and_areas) > 0:
+                combo_with_smallest_area = min(all_combos_and_areas, key=lambda x: x[1], default=None)
 
-            ########## STEP 2: For each UAV, plan path over assigned partitions ##########
+                if subsequent_1uav_multi_partition_coming:
+                    # check if its removal would still allow valid combinations for remaining UAVs:
+                    
+                    grids_to_remove = [sub_grids_left[i] for i in combo_with_smallest_area[0]] # (remember, combo_with_smallest_area[0] holds indexes into sub_grids_left)
+                    modified_grid = _remove_grids_from_list(sub_grids_left, grids_to_remove)
+                    # check if we can still form valid combinations for remaining UAVs
+                    partition_count_for_remaining_uavs = math.ceil(len(modified_grid) / (uavs_left - 1)) # notice: we have one less UAV in this check
+                    remaining_combos_and_areas = find_all_adjacent_partitions(modified_grid, partition_count_for_remaining_uavs)
+                    if len(remaining_combos_and_areas) > 0:
+                        valid_combo_with_smallest_area = combo_with_smallest_area
+                        break # found valid combo
+                    else: 
+                        # if not valid, remove this combo from all_combos_and_areas and try again
+                        all_combos_and_areas.remove(combo_with_smallest_area) # TODO KAN MAN BARE REMOVE SÅDAN HER?
+                else: 
+                    valid_combo_with_smallest_area = combo_with_smallest_area
+                    break # no need to check validity, as remaining UAVs will only cover single partitions
 
-            if combo_with_smallest_area is not None:
-                best_combination = combo_with_smallest_area[0]
-                best_partitions = [sub_grids_left[i] for i in best_combination] # (remember, best_combination holds indexes into sub_grids_left)
-                path, _, _, _ = one_uav_multi_partitions_path_plan(best_partitions)
-                path_per_uav.append(path)
-            else :
-                raise ValueError("Could not find adjacent partition combination for UAV assignment") # this should not happen
+            if valid_combo_with_smallest_area is None:
+                raise ValueError("Could not find any valid partition combinations for UAV assignment")  # this should not happen
+
+            ########## STEP 2: For 1 UAV, plan path over assigned partitions ##########
+
+            best_combination = valid_combo_with_smallest_area[0]
+            best_partitions = [sub_grids_left[i] for i in best_combination] # (remember, best_combination holds indexes into sub_grids_left)
+            path, _, _, _ = one_uav_multi_partitions_path_plan(best_partitions)
+            path_per_uav.append(path)
+
             
             ########## STEP 3: Remove assigned partitions from sub_grids_left ##########
             grids_to_remove = [sub_grids_left[i] for i in best_combination]
+            print("????????grids to remove:", len(grids_to_remove))
             sub_grids_left = _remove_grids_from_list(sub_grids_left, grids_to_remove)
+
+            ########## STEP 4: Update uavs_left ##########
+            # (a single UAV has just been assigned)
+            uavs_left -= 1
 
     return path_per_uav
 
@@ -666,14 +737,59 @@ def main(args=None) -> None:
     # After processing all grids, perform culling/merging step 
     culling_merged_grids = culling_merging(regular_grids_result)
 
+    # Plan path(s) over the resulting sub-grids
+    path_per_uav = path_plan_swarm(culling_merged_grids, uav_count=UAV_COUNT)
+
+    # Pickle path_per_uav:
+    with open('poly_decomp_paths.pkl', 'wb') as f:
+        pickle.dump(path_per_uav, f)
+
+    # Plot if enabled
+    if ENABLE_PLOTTING:
+        plot_path_per_uav(fly_grid, culling_merged_grids, path_per_uav)
+        pass # TODO
+
     # DEBUG
-    best_path_debug , start_cell, end_cell, _ = path_plan_swarm(culling_merged_grids, uav_count=3)
+    #best_path_debug , start_cell, end_cell, _ = path_plan_swarm(culling_merged_grids, uav_count=3)
     # DEBUG END
 
     # Plot the resulting sub-grids
-    plot_subgrid(fly_grid, culling_merged_grids, plot_paths=True, best_path_debug=best_path_debug, start_cell=start_cell, end_cell=end_cell)
+    # plot_subgrid(fly_grid, culling_merged_grids, plot_paths=True, best_path_debug=best_path_debug, start_cell=start_cell, end_cell=end_cell)
 
 
+
+def plot_path_per_uav(fly_grid: np.ndarray, culling_merged_grids: list, path_per_uav: list):
+    n = len(culling_merged_grids)
+    print(f"Decomposition resulted in {n} regular sub-polygons")
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+    #ax.imshow(fly_grid, cmap='Greys', origin='lower', alpha=0.3, vmin=0, vmax=1)
+
+    if n > 0:
+        combined = np.zeros_like(fly_grid, dtype=int)
+        for idx, sub_grid in enumerate(culling_merged_grids, start=1):
+            combined = np.where(sub_grid == 1, idx, combined)
+
+        base_cmap = plt.cm.get_cmap('tab20', n)
+        color_positions = np.linspace(0.2, 0.8, n)
+        colors = [(0, 0, 0, 0)] + [base_cmap(pos) for pos in color_positions]
+        cmap = ListedColormap(colors)
+
+        ax.imshow(combined, cmap=cmap, origin='lower', alpha=0.9, vmin=0, vmax=n)
+        ax.set_title("Regular sub-grids overlayed on original grid")
+
+    # Plot paths for each UAV
+    for uav_idx, path in enumerate(path_per_uav):
+        xs = [p[1] for p in path]
+        ys = [p[0] for p in path]
+        ax.plot(xs, ys, linewidth=1.5, marker='o', markersize=3, label=f'UAV {uav_idx+1} path')
+
+    ax.legend(loc='upper right', fontsize='small')
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_aspect('equal')
+    plt.tight_layout()
+    plt.show()
 
 
 def plot_subgrid(fly_grid: np.ndarray, culling_merged_grids: list, plot_paths: bool = True, best_path_debug=None, start_cell=None, end_cell=None):

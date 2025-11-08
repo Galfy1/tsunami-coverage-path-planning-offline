@@ -23,7 +23,7 @@ from scan_for_monotonicity import scan_for_non_monotone_sections, scan_for_monot
 #DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
 DRONE_START = (56.1672192716924, 10.152786411345) # for "paper_recreate.poly"
 CAMERA_COVERAGE_LEN = 1 # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
-UAV_COUNT = 5
+UAV_COUNT = 2
 
 ENABLE_PLOTTING = True
 
@@ -472,18 +472,17 @@ def path_plan_swarm(all_sub_grids, uav_count):
             largest_partition = max(sub_grids_left, key=_grid_area)
 
             ########## STEP 2: Find sweep line that splits it best (in terms of area balance) ##########
-            # scan for monotone sweep lines
+            # we only consider monotone sweep lines (just to decrease search space) 
+            # (many non-monotone sweep lines would produce more than 2 sub-partitions when splitting, which we dont want)
             monotone_sweep_lines, _, _, _ = scan_for_monotone_sections(largest_partition)
             # find best sweep line that splits the partition into two sub-partitions with most balanced area
-            # (we only split at monotone sweep lines - to avoid splitting a single partition into more than two partitions)
             best_sweep_line = None
             best_area_balance = float('inf')
             for sweep_line, _ , _ in monotone_sweep_lines:
                 # split partition along sweep line
                 sub_partitions = split_grid_along_sweep_line(largest_partition, sweep_line)
                 if len(sub_partitions) != 2:
-                    #raise ValueError("Expected exactly two sub-partitions after split") # TODO
-                    continue # just to make sure. (we only want to split into two partitions)
+                    continue # we only want to split into two partitions
 
                 area1 = _grid_area(sub_partitions[0])
                 area2 = _grid_area(sub_partitions[1])
@@ -509,15 +508,13 @@ def path_plan_swarm(all_sub_grids, uav_count):
 
             partition_count_for_uav = math.ceil(len(sub_grids_left) / uavs_left)
 
-            #more_multi_partition_uavs_needed = math.floor(len(sub_grids_left) / partition_count_for_uav)
-
             ########## STEP 1: Find best adjacent combinations of partitions for each UAV (best = smallest combined area) ##########
             # Note: the combination also has to be "valid". 
             # (here, "invalid" would meaning that if its removal from sub_grids_left would result in partitions that cannot form adjacent combinations for remaining UAVs)
 
             all_combos_and_areas = find_all_adjacent_partitions(sub_grids_left, partition_count_for_uav)
 
-            subsequent_1uav_multi_partition_coming = (len(sub_grids_left)-partition_count_for_uav) > (uavs_left-1)
+            subsequent_1uav_multi_partition_coming = (len(sub_grids_left)-partition_count_for_uav) > (uavs_left-1) # bool
 
             valid_combo_with_smallest_area = None
             while len(all_combos_and_areas) > 0:
@@ -536,7 +533,7 @@ def path_plan_swarm(all_sub_grids, uav_count):
                         break # found valid combo
                     else: 
                         # if not valid, remove this combo from all_combos_and_areas and try again
-                        all_combos_and_areas.remove(combo_with_smallest_area) # TODO KAN MAN BARE REMOVE SÅDAN HER?
+                        all_combos_and_areas.remove(combo_with_smallest_area) # (.remove is allowed here, as all_combos_and_areas just holds indexes and areas)
                 else: 
                     valid_combo_with_smallest_area = combo_with_smallest_area
                     break # no need to check validity, as remaining UAVs will only cover single partitions
@@ -747,7 +744,6 @@ def main(args=None) -> None:
     # Plot if enabled
     if ENABLE_PLOTTING:
         plot_path_per_uav(fly_grid, culling_merged_grids, path_per_uav)
-        pass # TODO
 
     # DEBUG
     #best_path_debug , start_cell, end_cell, _ = path_plan_swarm(culling_merged_grids, uav_count=3)
@@ -792,7 +788,7 @@ def plot_path_per_uav(fly_grid: np.ndarray, culling_merged_grids: list, path_per
     plt.show()
 
 
-def plot_subgrid(fly_grid: np.ndarray, culling_merged_grids: list, plot_paths: bool = True, best_path_debug=None, start_cell=None, end_cell=None):
+def _debug_plot_subgrid(fly_grid: np.ndarray, culling_merged_grids: list, plot_paths: bool = True, best_path_debug=None, start_cell=None, end_cell=None):
 
     n = len(culling_merged_grids)
     print(f"Decomposition resulted in {n} regular sub-polygons")

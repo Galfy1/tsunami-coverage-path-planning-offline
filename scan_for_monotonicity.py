@@ -95,6 +95,10 @@ def scan_for_monotone_sections(grid: np.ndarray):
                 intersection_points.append((y, x))
                 val = cell_val
         if len(intersection_points) <= 2:
+            # Again.. because of the nature of the grid.. we cant split exactly on the line...
+            # However - Since we dont use scan_for_monotone_sections() in a scenario where we would 
+            #           expect subgrids to always be monotone if splitting a grid along this line, we simply ignore this issue here.
+            #           That is, the issue does not matter in our case, so we simply split the line as is.
             sweep_line = LineString([(p1_x, y), (p2_x, y)])
             monotone_sweep_lines.append((sweep_line, intersection_points, 0))
         else:

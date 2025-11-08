@@ -245,7 +245,7 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                         all_covered = False
                         break
                 if all_covered == False:
-                    print("WARNING: path generation failed to cover all 1's in the grid.")
+                    #print("WARNING: path generation failed to cover all 1's in the grid.")
                     break
             break
 

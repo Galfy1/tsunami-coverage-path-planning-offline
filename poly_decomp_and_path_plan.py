@@ -384,13 +384,12 @@ def _grid_area(grid):
     # compute area of grid (number of flyable cells)
     return np.sum(grid == 1)
 
-def _remove_grids_from_list(grid_list: List[np.ndarray], grids_to_remove: List[np.ndarray]):
+def _remove_grids_from_list(grid_list, grids_to_remove):
     filtered_grids = []
     for grid in grid_list:
-        if grid not in grids_to_remove:
+        if not any(np.array_equal(grid, g) for g in grids_to_remove):
             filtered_grids.append(grid)
     return filtered_grids
-
 
 def path_plan_swarm(all_sub_grids, uav_count):
     # (note: "sub-grids" and "partitions" are used interchangeably here)
@@ -401,7 +400,7 @@ def path_plan_swarm(all_sub_grids, uav_count):
 
     sub_grids_left = all_sub_grids.copy() 
 
-    while True:
+    while len(sub_grids_left) > 0:
 
         if len(sub_grids_left) == uav_count:
             # simply assign one partition per UAV
@@ -446,11 +445,8 @@ def path_plan_swarm(all_sub_grids, uav_count):
             else:
                 raise ValueError("Could not find a valid sweep line to split the largest partition")
 
-            ########## STEP 4: Break ##########
-            break # (the rest of the logic is handled in the next iteration of the while loop) 
+            # Continue loop to re-evaluate partition count
 
-
-        
         elif len(sub_grids_left) > uav_count:
             # Too many partitions, one/more UAVs need to cover multiple partitions
 
@@ -460,41 +456,38 @@ def path_plan_swarm(all_sub_grids, uav_count):
 
             # find all possible adjacent combinations of partitions of size partition_count_for_uav (adjecent = "chain" adjacentcy is allowed)
             combo_with_smallest_area = None
-            for combination in itertools.combinations(range(len(all_sub_grids)), partition_count_for_uav): # (combination holds a list of indexes into all_sub_grids)
+            for combination in itertools.combinations(range(len(sub_grids_left)), partition_count_for_uav): # (combination holds a list of indexes into all_sub_grids)
                 # check if all partitions in combination are adjacent
-                all_adjacent = True
-
                 adjacentcies = [False] * len(combination) # each partition has an entry in this list. True = found atleast 1 adjacent partition, False = no adjacent partition found
                 for i in range (len(combination)): # for each partition
                     for j in range(len(combination)): # check all other partitions
                         # skip self-comparison:
                         if i == j: 
                             continue
-                        if are_grids_adjacent(all_sub_grids[combination[i]], all_sub_grids[combination[j]]):
+                        if are_grids_adjacent(sub_grids_left[combination[i]], sub_grids_left[combination[j]]):
                             adjacentcies[i] = True
                             break # no need to check other partitions for this one
 
                 # if an adjacency chain exists (i.e., all partitions have at least one adjacent partition)
                 if all(adjacentcies):
                     # compute total area of this combination
-                    total_area = sum(_grid_area(all_sub_grids[i]) for i in combination)
+                    total_area = sum(_grid_area(sub_grids_left[i]) for i in combination)
                     if combo_with_smallest_area is None or total_area < combo_with_smallest_area[1]:
                         combo_with_smallest_area = (combination, total_area)
 
 
             ########## STEP 2: For each UAV, plan path over assigned partitions ##########
 
-            # one_uav_multi_partitions_path_plan skal bruges her blandt andet
             if combo_with_smallest_area is not None:
                 best_combination = combo_with_smallest_area[0]
-                best_partitions = [all_sub_grids[i] for i in best_combination] # (remember, best_combination holds indexes into all_sub_grids)
-                path = one_uav_multi_partitions_path_plan(best_partitions)
+                best_partitions = [sub_grids_left[i] for i in best_combination] # (remember, best_combination holds indexes into sub_grids_left)
+                path, _, _, _ = one_uav_multi_partitions_path_plan(best_partitions)
                 path_per_uav.append(path)
             else :
                 raise ValueError("Could not find adjacent partition combination for UAV assignment") # this should not happen
             
             ########## STEP 3: Remove assigned partitions from sub_grids_left ##########
-            grids_to_remove = [all_sub_grids[i] for i in best_combination]
+            grids_to_remove = [sub_grids_left[i] for i in best_combination]
             sub_grids_left = _remove_grids_from_list(sub_grids_left, grids_to_remove)
 
     return path_per_uav

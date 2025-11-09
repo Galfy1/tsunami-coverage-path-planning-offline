@@ -28,8 +28,8 @@ from alternative_method_poly_decomp.swarm_path_planning import path_plan_swarm
 from alternative_method_poly_decomp.culling_merging import culling_merging
 
 
-#DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
-DRONE_START = (56.1672192716924, 10.152786411345) # for "paper_recreate.poly"
+DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
+#DRONE_START = (56.1672192716924, 10.152786411345) # for "paper_recreate.poly"
 CAMERA_COVERAGE_LEN = 1 # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
 UAV_COUNT = 2
 
@@ -112,8 +112,14 @@ def find_best_sweep_line_area_balance(non_monotone_sweep_lines: List[LineString]
         # Split grid along this sweep line
         sub_grids = split_grid_along_sweep_line(grid, sweep_line)
         if len(sub_grids) < 2:  # TODO 
-            raise ValueError("Sweep line did not split the grid into multiple sub-grids") # this should not happen
+            continue
+            # TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+            #raise ValueError("Sweep line did not split the grid into multiple sub-grids") # this should not happen
 
+        # TODO: hvis det skulle være rigtig godt, så skulle man tage uav_count med i betragtning her....
+            # så den ikke bare splitter efter efter balance mellem subgrids... men den samler subgrids så det passer til hvordan fordelingen serner vil være i path planning
+                        # måske skal den her bruge? partition_count_for_uav = math.ceil(len(sub_grids_left) / uavs_left)
+                        # men det er meget svært... fordi partition_count_for_uav ændre sig over tid, som path planningen går along
 
         # find sweep line that results in best area balance between all sub-grids (remember, there might be more than 2 sub-grids)
         areas = [np.sum(sg) for sg in sub_grids]
@@ -138,7 +144,7 @@ def main(args=None) -> None:
     # TODO irregular_poly
     # TODO totally_mono.py
     # TODO paper_recreate.poly
-    with open('alternative_method_poly_decomp/paper_recreate.poly','r') as f: 
+    with open('alternative_method_poly_decomp/irregular_poly.poly','r') as f: 
         reader = csv.reader(f,delimiter=' ')
         for row in reader:
             if(row[0] == '#saved'): continue # skip header

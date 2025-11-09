@@ -44,20 +44,19 @@ def split_grid_with_disconnected_sections(grid: np.ndarray):
     # check for disconnected sections in the grid and split into multiple sub-grids if found
 
     disconnected_sections = []
-    
-    #print("BURGER")
+    remaining_grid = np.copy(grid)  # Work on a copy
 
-    for y in range(grid.shape[0]):
-        for x in range(grid.shape[1]):
-            if grid[y][x] == 1:
+    for y in range(remaining_grid.shape[0]):
+        for x in range(remaining_grid.shape[1]):
+            if remaining_grid[y][x] == 1:
                 #print(f"SUSHI {x}, {y}")
                 # found a flyable cell, start flood fill to find all connected cells
-                visited = np.zeros_like(grid)
+                visited = np.zeros_like(remaining_grid)
                 to_visit = queue()
                 to_visit.append( (y,x) )
                 visited[y][x] = 1
 
-                # flood fill flyable area (1s in grid)
+                # flood fill flyable area (1s in remaining_grid)
                 while(len(to_visit) > 0):
                     cy, cx = to_visit.popleft()
 
@@ -67,28 +66,28 @@ def split_grid_with_disconnected_sections(grid: np.ndarray):
                         adjy = cy + dy_nway[direction]
 
                         # bounds check
-                        if (adjx < 0 or adjy < 0 or adjx >= grid.shape[1] or adjy >= grid.shape[0]):
+                        if (adjx < 0 or adjy < 0 or adjx >= remaining_grid.shape[1] or adjy >= remaining_grid.shape[0]):
                             continue # out of bounds
 
-                        if grid[adjy][adjx] == 1 and visited[adjy][adjx] == 0:
+                        if remaining_grid[adjy][adjx] == 1 and visited[adjy][adjx] == 0:
                             visited[adjy][adjx] = 1
                             to_visit.append( (adjy, adjx) )
                 
                 # Now, visited contains all connected cells from the starting point
                 # Create a new sub-grid for this connected section
-                sub_grid = np.zeros_like(grid)
-                for yy in range(grid.shape[0]):
-                    for xx in range(grid.shape[1]):
+                sub_grid = np.zeros_like(remaining_grid)
+                for yy in range(remaining_grid.shape[0]):
+                    for xx in range(remaining_grid.shape[1]):
                         if visited[yy][xx] == 1:
                             sub_grid[yy][xx] = 1
                 
                 disconnected_sections.append(sub_grid)
 
                 # Remove the visited cells from the original grid to avoid re-processing
-                for yy in range(grid.shape[0]):
-                    for xx in range(grid.shape[1]):
+                for yy in range(remaining_grid.shape[0]):
+                    for xx in range(remaining_grid.shape[1]):
                         if visited[yy][xx] == 1:
-                            grid[yy][xx] = 0
+                            remaining_grid[yy][xx] = 0
 
 
     return disconnected_sections
@@ -115,10 +114,6 @@ def split_grid_along_sweep_line(grid: np.ndarray, sweep_line: LineString):
         sub_grid2 = np.copy(grid)
         sub_grid2[:, :split_x] = 0
 
-
-    # sub_grids.append(sub_grid1)
-    # sub_grids.append(sub_grid2)
-    # TODO indkommenter når det andet optil virker (og fjern det lige ovenfor)
     # If any of the sub-grids have disconnected sections, split them further
     sub_grids.extend(split_grid_with_disconnected_sections(sub_grid1))
     sub_grids.extend(split_grid_with_disconnected_sections(sub_grid2))

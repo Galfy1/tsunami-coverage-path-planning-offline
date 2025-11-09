@@ -1,6 +1,7 @@
 import math
 import numpy as np
 from alternative_method_poly_decomp.scan_for_monotonicity import scan_for_non_monotone_sections
+from shared_tools.custom_cell_tools import dx_4way, dy_4way, dx_8way, dy_8way, diagonal_indices_8way
 
 
 def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizontal'):
@@ -117,6 +118,33 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
             secondary = get_secondary(y, x) # current position in secondary axis
 
             ######## Sweep in primary direction ########
+
+            # before the actual sweeping, we handle the edge case of a lonely cell only beeing connected diagonally. 
+            #   (this can happens due to the discretization... and the fact that we use 8-way connectivity in are_grids_adjacent() and split_grid_with_disconnected_sections())
+            # check if the current cell is only connected diagonally to 1 neighbor (in any direction)
+            neighbors_index = []
+            for direction in range(8):
+                # adjacent cell coordinates
+                adjx = x + dx_8way[direction]
+                adjy = y + dy_8way[direction]
+                if 0 <= adjy < grid.shape[0] and 0 <= adjx < grid.shape[1]: # within bounds check
+                    if grid[adjy, adjx] == 1: # only care about connected cells
+                        # found a connected neighbor
+                        neighbors_index.append(direction)
+            if len(neighbors_index) == 1 and neighbors_index[0] in diagonal_indices_8way:
+                # we have a lonely cell only connected diagonally!
+                # try to move into that cell first (if not already in path)
+                diag_direction = neighbors_index[0]
+                adjx = x + dx_8way[diag_direction]
+                adjy = y + dy_8way[diag_direction]
+                if (adjy, adjx) not in path: # in not already in path
+                    # move into the diagonal cell
+                    x = adjx
+                    y = adjy
+                    primary = get_primary(y, x)
+                    secondary = get_secondary(y, x)
+                    path.append((y, x))
+            
 
             # Sweep in primary direction (untill hitting a boundary or visited cell)
             while (0 <= primary + primary_dir < primary_size): # break if hitting outer grid limits

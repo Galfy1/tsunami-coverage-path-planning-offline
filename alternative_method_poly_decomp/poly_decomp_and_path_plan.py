@@ -22,10 +22,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from shared_tools.custom_cell_tools import dx_4way, dy_4way, dx_8way, dy_8way
 from shared_tools.create_grid_from_poly import create_grid_from_polygon_and_noflyzones
 from alternative_method_poly_decomp.lawnmower import lawnmower
-from alternative_method_poly_decomp.shared_grid_tools import split_grid_along_sweep_line
+from alternative_method_poly_decomp.shared_grid_tools import split_grid_along_sweep_line, are_grids_adjacent
 from alternative_method_poly_decomp.scan_for_monotonicity import scan_for_non_monotone_sections
 from alternative_method_poly_decomp.swarm_path_planning import path_plan_swarm
-from alternative_method_poly_decomp.culling_merging import culling_merging
+from alternative_method_poly_decomp.culling_merging import culling_merging, merge_grids
 
 
 DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
@@ -84,6 +84,9 @@ def _plot_grid(grid: np.ndarray, title: str = "Grid"):
                     # antal partian større end uav count: assign flere partians til nogle uavs (basret på area) og brug deres halløj i paper til at finde bedste patch når 1 drone skal cover over flere partions.
         
         
+# TODO skriv at den ikke altid finder den bedste solution... f.eks. for irregular_poly med uav 2 --> her ville det være beder bare at cutte polyen i 2 på midten.
+                                                                                                    # men vi cutter kun ved ikke-monotone sweel lines.
+    
 #UAV_COUNT_HMMM = 10
 
 
@@ -112,7 +115,7 @@ def find_best_sweep_line_area_balance(non_monotone_sweep_lines: List[LineString]
         # Split grid along this sweep line
         sub_grids = split_grid_along_sweep_line(grid, sweep_line)
         if len(sub_grids) < 2:  # TODO 
-            continue
+            continue 
             # TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!! 
             #raise ValueError("Sweep line did not split the grid into multiple sub-grids") # this should not happen
 
@@ -124,6 +127,40 @@ def find_best_sweep_line_area_balance(non_monotone_sweep_lines: List[LineString]
                         # men det er meget svært... fordi partition_count_for_uav ændre sig over tid, som path planningen går along
                 # POTENTIEL lØSNING: hvis subgrid count er højere end uav count, samler man bare de to mindste subgrids (area wise) indtil subgrid count matcher uav count
                                     # og så er det de partions der bruges i area balance målingen her
+                                    # men husk.. det skal ikke bare være de 2 mindste.. det skal være de 2 mindste der er connected (samme tjek vi laver i swarm_path_planning halløjet)
+        # # TODO GIVER ALT DET HER OVERHOEVEDET MENING!??!?!?! FOR CULLING MERGE KAN JO BARE SAMLE DEM IGEN SENERE... OG SÅ AREA HALLØJET I VASKEN
+        # while len(sub_grids) > UAV_COUNT:
+        #     # find the two smallest connected sub-grids and merge them
+        #     min_area = math.inf
+        #     grids_to_merge = (None, None)
+        #     for i in range(len(sub_grids)):
+        #         for j in range(i + 1, len(sub_grids)):
+        #             if are_grids_adjacent(sub_grids[i], sub_grids[j]):
+        #                 area = np.sum(sub_grids[i]) + np.sum(sub_grids[j])
+        #                 if area < min_area:
+        #                     min_area = area
+        #                     grids_to_merge = (i, j)
+        #     if grids_to_merge[0] is not None and grids_to_merge[1] is not None:
+        #         merged_grid = merge_grids(sub_grids[grids_to_merge[0]], sub_grids[grids_to_merge[1]])
+        #         # remove the two grids and add the merged grid
+        #         new_sub_grids = []
+        #         for k in range(len(sub_grids)):
+        #             if k != grids_to_merge[0] and k != grids_to_merge[1]:
+        #                 new_sub_grids.append(sub_grids[k])
+        #         new_sub_grids.append(merged_grid)
+        #         sub_grids = new_sub_grids
+        #     else:
+        #         break  # no more connected grids to merge
+        # # find sweep line that results in best area balance between all sub-grids (remember, there might be more than 2 sub-grids)
+        # areas = [np.sum(sg) for sg in sub_grids]
+        # max_area = max(areas)
+        # min_area = min(areas)
+        # if max_area == 0:
+        #     continue # avoid division by zero
+        # balance = (max_area - min_area) / max_area  # relative balance measure
+        # if balance < best_balance:
+        #     best_balance = balance
+        #     selected_sweep_line = sweep_line
 
         # find sweep line that results in best area balance between all sub-grids (remember, there might be more than 2 sub-grids)
         areas = [np.sum(sg) for sg in sub_grids]
@@ -189,7 +226,14 @@ def main(args=None) -> None:
             # Gap-severity is fine when a single drone covers all polygon partitions (as it does in the paper) (it yields good results).
             # For our system, however, work is split across multiple UAVs - so ensuring partition areas are balanced
             # between the UAVs is more important than optimizing gap-severity.
+            # HOWEVER: At this step, simply choosing the sweep line that yields the best area balance between resulting partitions is not ideal either. 
+            #          This is because of two subsequent steps:
+            #               1: subsequent culling merging steps can merge partitions if the resulting partition is still a "regular" polygon
+            #                   (i.e. the partition areas are changed)
+            #               2: subsequent path planning steps can combine the coverage of a single UAV across multiple partitions. 
+            #                   (i.e. the actual partion area does not change. But, the coverage area for each UAV does - which is what we actually care about)
             # TODO i rapporten vis et plot med gap severity.. og hvis hvorfor det ikke er så godt for vores system
+                    # og så selvfølgelig nævn alt ovenfor. og også nævn det i en future work afsnit, hvad man kunne gøre.
 
             #selected_sweep_line = find_best_sweep_line_gap_severity(non_monotone_sweep_lines, banned_sweep_lines)
             selected_sweep_line = find_best_sweep_line_area_balance(non_monotone_sweep_lines, grid, banned_sweep_lines)
@@ -222,6 +266,9 @@ def main(args=None) -> None:
 
     # After processing all grids, perform culling/merging step 
     culling_merged_grids = culling_merging(regular_grids_result)
+    
+    for i, grid in enumerate(culling_merged_grids):
+        print(f"Grid {i}: area={np.sum(grid)}, shape={grid.shape}")
 
     # Plan path(s) over the resulting sub-grids
     path_per_uav = path_plan_swarm(culling_merged_grids, uav_count=UAV_COUNT)
@@ -230,6 +277,8 @@ def main(args=None) -> None:
     paths_only = [x[0] for x in path_per_uav] # (we only need the paths for later use)
     with open('poly_decomp_paths.pkl', 'wb') as f:
         pickle.dump(paths_only, f)
+
+    #print(f"path2: {path_per_uav[1][0]}")
 
     # Plot if enabled
     if ENABLE_PLOTTING:

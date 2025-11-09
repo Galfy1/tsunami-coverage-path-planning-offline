@@ -5,6 +5,8 @@ dy_4way = [ 0, 1, 0, -1]
 dx_8way = [ -1, -1, 0, 1, 1, 1, 0, -1]
 dy_8way = [ 0, 1, 1, 1, 0, -1, -1, -1]
 
+diagonal_indices_8way = [1, 3, 5, 7]  # Indices for diagonal directions in dx_8way/dy_8way
+
 
 # Function to check if a cell
 # is be visited or not

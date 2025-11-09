@@ -184,8 +184,6 @@ def find_all_adjacent_partitions(grid, partition_count):
 def path_plan_swarm(all_sub_grids, uav_count):
     # (note: "sub-grids" and "partitions" are used interchangeably here)
 
-    # TODO !!!!!! HUSK LIGE DEN DER 1px FEJL DER !!!!
-
     path_per_uav = []
 
     sub_grids_left = all_sub_grids.copy() 
@@ -196,6 +194,7 @@ def path_plan_swarm(all_sub_grids, uav_count):
         print("path_plan_swarm() processing...")
 
         if len(sub_grids_left) == uavs_left:
+            #print("SKIBIDIBOP")
             # simply assign one partition per UAV
             for grid in sub_grids_left:
                 path, start_cell, end_cell, _ = one_uav_single_partition_path_plan(grid)

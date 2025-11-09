@@ -41,7 +41,7 @@ def scan_for_non_monotone_sections(grid: np.ndarray):
             # because  of the nature of the grid.. we cant split exactly on the line... so we have to split just above or below it..
             # (excessive splitting will be corrected later in the "culling merging" step)
             above_line = LineString([(p1_x, y + 1), (p2_x, y + 1)])
-            below_line = LineString([(p1_x, y - 1), (p2_x, y - 1)])
+            below_line = LineString([(p1_x, y), (p2_x, y)])
             non_monotone_sweep_lines.append((above_line, intersection_points, gap_severity))
             non_monotone_sweep_lines.append((below_line, intersection_points, gap_severity))
 
@@ -78,7 +78,7 @@ def scan_for_non_monotone_sections(grid: np.ndarray):
 
             # because  of the nature of the grid.. we cant split exactly on the line... so we have to split just left or right of it..
             # (excessive splitting will be corrected later in the "culling merging" step)
-            left_line = LineString([(x - 1, p1_y), (x - 1, p2_y)])
+            left_line = LineString([(x, p1_y), (x, p2_y)])
             right_line = LineString([(x + 1, p1_y), (x + 1, p2_y)])
             non_monotone_sweep_lines.append((left_line, intersection_points, gap_severity))
             non_monotone_sweep_lines.append((right_line, intersection_points, gap_severity))

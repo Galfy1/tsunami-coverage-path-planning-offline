@@ -31,7 +31,7 @@ from alternative_method_poly_decomp.culling_merging import culling_merging
 #DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
 DRONE_START = (56.1672192716924, 10.152786411345) # for "paper_recreate.poly"
 CAMERA_COVERAGE_LEN = 1 # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
-UAV_COUNT = 10
+UAV_COUNT = 2
 
 ENABLE_PLOTTING = True
 
@@ -87,8 +87,47 @@ def _plot_grid(grid: np.ndarray, title: str = "Grid"):
 #UAV_COUNT_HMMM = 10
 
 
+# find best sweel line (to split on) based on gap severity
+def find_best_sweep_line_gap_severity(non_monotone_sweep_lines: List[LineString], banned_sweep_lines: List[LineString]) -> LineString:
+    max_gap_severity = -1
+    selected_sweep_line = None
+    for sweep_line, _ , gap_severity in non_monotone_sweep_lines:
+        if sweep_line in banned_sweep_lines:
+            continue # skip already used sweep lines
+        if gap_severity > max_gap_severity:
+            max_gap_severity = gap_severity
+            selected_sweep_line = sweep_line
+    return selected_sweep_line
 
 
+def find_best_sweep_line_area_balance(non_monotone_sweep_lines: List[LineString], grid: np.ndarray, banned_sweep_lines: List[LineString]) -> LineString:
+    best_balance = math.inf
+    selected_sweep_line = None
+    for sweep_line, _ , gap_severity in non_monotone_sweep_lines:
+        if sweep_line in banned_sweep_lines:
+            continue # skip already used sweep lines
+
+        #print(f"Evaluating sweep line: {sweep_line}")
+
+        # Split grid along this sweep line
+        sub_grids = split_grid_along_sweep_line(grid, sweep_line)
+        if len(sub_grids) < 2:  # TODO 
+            raise ValueError("Sweep line did not split the grid into multiple sub-grids") # this should not happen
+
+
+        # find sweep line that results in best area balance between all sub-grids (remember, there might be more than 2 sub-grids)
+        areas = [np.sum(sg) for sg in sub_grids]
+        max_area = max(areas)
+        min_area = min(areas)
+        if max_area == 0:
+            continue # avoid division by zero
+        balance = (max_area - min_area) / max_area  # relative balance measure
+        if balance < best_balance:
+            best_balance = balance
+            selected_sweep_line = sweep_line
+
+
+    return selected_sweep_line
 
 
 def main(args=None) -> None:
@@ -135,15 +174,16 @@ def main(args=None) -> None:
             print("Polygon is irregular (non-monotone in both directions)")
             # We need to split!
 
-            # Find candidate sweep line with largest gap severity
-            max_gap_severity = -1
-            selected_sweep_line = None
-            for sweep_line, _ , gap_severity in non_monotone_sweep_lines:
-                if sweep_line in banned_sweep_lines:
-                    continue # skip already used sweep lines
-                if gap_severity > max_gap_severity:
-                    max_gap_severity = gap_severity
-                    selected_sweep_line = sweep_line
+            # Find best candidate sweep line to split on:
+
+            # Gap-severity is fine when a single drone covers all polygon partitions (as it does in the paper) (it yields good results).
+            # For our system, however, work is split across multiple UAVs - so ensuring partition areas are balanced
+            # between the UAVs is more important than optimizing gap-severity.
+            # TODO i rapporten vis et plot med gap severity.. og hvis hvorfor det ikke er så godt for vores system
+
+            #selected_sweep_line = find_best_sweep_line_gap_severity(non_monotone_sweep_lines, banned_sweep_lines)
+            selected_sweep_line = find_best_sweep_line_area_balance(non_monotone_sweep_lines, grid, banned_sweep_lines)
+
 
             if selected_sweep_line is None:
                 print("No valid sweep line found for splitting (all previously used). Stopping further decomposition.")
@@ -159,7 +199,7 @@ def main(args=None) -> None:
             if len(regular_grids_result) == 44:
                 _plot_grid(grid, "Original grid to split")
 
-            print(f"Split grid into {len(sub_grids)} sub-grids along sweep line")
+            #print(f"Split grid into {len(sub_grids)} sub-grids along sweep line")
 
             # add sub-grids to queue for further processing
             for sub_grid in sub_grids:

@@ -21,16 +21,21 @@ def scan_for_non_monotone_sections(grid: np.ndarray):
                 # transition detected
                 intersection_points.append((y, x))
                 val = cell_val
+        # account for edge case where sweep line ends on a 1 cell
+        if grid[y][grid.shape[1]-1] == 1:
+            if len(intersection_points) == 0 or intersection_points[-1] != (y, grid.shape[1]-1): # if not already added
+                intersection_points.append((y, grid.shape[1]-1))
+
 
         #print(f"leng: {len(intersection_points)}")
         if len(intersection_points) > 2:
             # Sweep line is does not pass criteria! (its intersecting non-monotone sections)
-            sweep_line = LineString([(p1_x, y), (p2_x, y)])
+            #sweep_line = LineString([(p1_x, y), (p2_x, y)])
             gap_severity = 0
             for i in range(1, len(intersection_points) - 1, 2):
                 start_pt = intersection_points[i]
                 end_pt = intersection_points[i + 1]
-                gap_severity += abs(end_pt[0] - start_pt[0])  # y coordinate difference
+                gap_severity += abs(end_pt[1] - start_pt[1])  # x coordinate difference
                 pass
 
             # because  of the nature of the grid.. we cant split exactly on the line... so we have to split just above or below it..
@@ -55,21 +60,28 @@ def scan_for_non_monotone_sections(grid: np.ndarray):
                 # transition detected
                 intersection_points.append((y, x))
                 val = cell_val
+        # account for edge case where sweep line ends on a 1 cell
+        if grid[grid.shape[0]-1][x] == 1:
+            if len(intersection_points) == 0 or intersection_points[-1] != (grid.shape[0]-1, x): # if not already added
+                intersection_points.append((grid.shape[0]-1, x))
 
-        #print(f"leng: {len(intersection_points)}")
+
         if len(intersection_points) > 2:
             # Sweep line is does not pass criteria! (its intersecting non-monotone sections)
-            sweep_line = LineString([(x, p1_y), (x, p2_y)])
+            #sweep_line = LineString([(x, p1_y), (x, p2_y)])
             gap_severity = 0
             for i in range(1, len(intersection_points) - 1, 2):
                 start_pt = intersection_points[i]
                 end_pt = intersection_points[i + 1]
-                gap_severity += abs(end_pt[1] - start_pt[1])  # x coordinate difference
+                gap_severity += abs(end_pt[0] - start_pt[0])  # y coordinate difference
+                pass
 
-            above_line = LineString([(p1_x, y + 1), (p2_x, y + 1)])
-            below_line = LineString([(p1_x, y - 1), (p2_x, y - 1)])
-            non_monotone_sweep_lines.append((above_line, intersection_points, gap_severity))
-            non_monotone_sweep_lines.append((below_line, intersection_points, gap_severity))
+            # because  of the nature of the grid.. we cant split exactly on the line... so we have to split just left or right of it..
+            # (excessive splitting will be corrected later in the "culling merging" step)
+            left_line = LineString([(x - 1, p1_y), (x - 1, p2_y)])
+            right_line = LineString([(x + 1, p1_y), (x + 1, p2_y)])
+            non_monotone_sweep_lines.append((left_line, intersection_points, gap_severity))
+            non_monotone_sweep_lines.append((right_line, intersection_points, gap_severity))
 
             non_monotone_in_x = True
 
@@ -80,6 +92,7 @@ def scan_for_non_monotone_sections(grid: np.ndarray):
 
 
 def scan_for_monotone_sections(grid: np.ndarray):
+    # (see scan_for_non_monotone_sections() for more comments)
     monotone_sweep_lines = []
     monotone_in_x = True
     monotone_in_y = True
@@ -94,6 +107,9 @@ def scan_for_monotone_sections(grid: np.ndarray):
             if cell_val != val:
                 intersection_points.append((y, x))
                 val = cell_val
+        if grid[y][grid.shape[1]-1] == 1:
+            if len(intersection_points) == 0 or intersection_points[-1] != (y, grid.shape[1]-1): # if not already added
+                intersection_points.append((y, grid.shape[1]-1))
         if len(intersection_points) <= 2:
             # Again.. because of the nature of the grid.. we cant split exactly on the line...
             # However - Since we dont use scan_for_monotone_sections() in a scenario where we would 
@@ -114,6 +130,9 @@ def scan_for_monotone_sections(grid: np.ndarray):
             if cell_val != val:
                 intersection_points.append((y, x))
                 val = cell_val
+        if grid[grid.shape[0]-1][x] == 1:
+            if len(intersection_points) == 0 or intersection_points[-1] != (grid.shape[0]-1, x): # if not already added
+                intersection_points.append((grid.shape[0]-1, x))
         if len(intersection_points) <= 2:
             sweep_line = LineString([(x, p1_y), (x, p2_y)])
             monotone_sweep_lines.append((sweep_line, intersection_points, 0))

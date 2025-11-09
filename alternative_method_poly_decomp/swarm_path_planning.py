@@ -190,12 +190,12 @@ def path_plan_swarm(all_sub_grids, uav_count):
 
     sub_grids_left = all_sub_grids.copy() 
     uavs_left = uav_count
-    print("!!!!!!!!Initial subgrids len:", len(sub_grids_left))
 
     while len(sub_grids_left) > 0:
 
+        print("path_plan_swarm() processing...")
+
         if len(sub_grids_left) == uavs_left:
-            print("XXXXXXXXXX")
             # simply assign one partition per UAV
             for grid in sub_grids_left:
                 path, start_cell, end_cell, _ = one_uav_single_partition_path_plan(grid)
@@ -203,7 +203,6 @@ def path_plan_swarm(all_sub_grids, uav_count):
             break # all UAVs assigned
 
         elif len(sub_grids_left) < uavs_left:
-            print("YYYYYYYYYY")
             # Not enough partitions, need to split some
             # We split the largest partitions (by area) until we have enough (the resulting partitions will still be "regular")
 
@@ -243,7 +242,6 @@ def path_plan_swarm(all_sub_grids, uav_count):
 
         elif len(sub_grids_left) > uavs_left:
             # Too many partitions, one/more UAVs need to cover multiple partitions
-            print("ZZZZZZZZZZZ")
 
             partition_count_for_uav = math.ceil(len(sub_grids_left) / uavs_left)
 

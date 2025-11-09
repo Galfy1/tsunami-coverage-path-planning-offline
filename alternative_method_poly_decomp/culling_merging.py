@@ -34,6 +34,8 @@ def culling_merging(all_sub_grids):
 
     while(len(sub_grid_pack_queue) > 0):
 
+        print("culling_merging() processing...")
+
         sub_grids_pack = sub_grid_pack_queue.popleft()
 
         new_sub_grids_pack = []
@@ -63,7 +65,7 @@ def culling_merging(all_sub_grids):
                     merged_grid = merge_grids(sub_grid, sub_grid_other)
                     _, grid_is_irregular, _, _ = scan_for_non_monotone_sections(merged_grid)
                     if grid_is_irregular == False:
-                        print("WWWWWWWWWWW")
+                        #print("WWWWWWWWWWW")
                         # Acceptability criterion satisfied!
                         # Merge the two sub-grids
                         #sub_grid = merged_grid # SAMME HER
@@ -75,10 +77,7 @@ def culling_merging(all_sub_grids):
                         local_merge_happened = True
                         merge_happened = True
                         break # exit inner loop to restart checking with new merged grid
-                    else:
-                        print("LLLLLLLLLLLL")
  
-
             if local_merge_happened == False:
                 # no merge happened for this sub-grid, keep it as is
                 new_sub_grids_pack.append(sub_grid)
@@ -87,11 +86,11 @@ def culling_merging(all_sub_grids):
 
         if merge_happened:
             sub_grid_pack_queue.append(new_sub_grids_pack)
-            print("777. subgrids len:", len(new_sub_grids_pack))
+            #print("777. subgrids len:", len(new_sub_grids_pack))
         else:
             # no merges happened - our work here is done
             all_sub_grids_after_culling = sub_grids_pack.copy()
-            print("888. subgrids len:", len(sub_grids_pack))
+            #print("888. subgrids len:", len(sub_grids_pack))
 
     #print(f"asdasd {all_sub_grids_after_culling}")
 

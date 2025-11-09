@@ -116,10 +116,14 @@ def find_best_sweep_line_area_balance(non_monotone_sweep_lines: List[LineString]
             # TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!! 
             #raise ValueError("Sweep line did not split the grid into multiple sub-grids") # this should not happen
 
+        # TODO fix problemer i den nuværende polygon (måske noget at gøre med 1px halløj der)
+
         # TODO: hvis det skulle være rigtig godt, så skulle man tage uav_count med i betragtning her....
             # så den ikke bare splitter efter efter balance mellem subgrids... men den samler subgrids så det passer til hvordan fordelingen serner vil være i path planning
                         # måske skal den her bruge? partition_count_for_uav = math.ceil(len(sub_grids_left) / uavs_left)
                         # men det er meget svært... fordi partition_count_for_uav ændre sig over tid, som path planningen går along
+                # POTENTIEL lØSNING: hvis subgrid count er højere end uav count, samler man bare de to mindste subgrids (area wise) indtil subgrid count matcher uav count
+                                    # og så er det de partions der bruges i area balance målingen her
 
         # find sweep line that results in best area balance between all sub-grids (remember, there might be more than 2 sub-grids)
         areas = [np.sum(sg) for sg in sub_grids]

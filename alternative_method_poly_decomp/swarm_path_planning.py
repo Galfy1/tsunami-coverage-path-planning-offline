@@ -198,8 +198,8 @@ def path_plan_swarm(all_sub_grids, uav_count):
             print("XXXXXXXXXX")
             # simply assign one partition per UAV
             for grid in sub_grids_left:
-                path, _, _, _ = one_uav_single_partition_path_plan(grid)
-                path_per_uav.append(path)
+                path, start_cell, end_cell, _ = one_uav_single_partition_path_plan(grid)
+                path_per_uav.append((path, start_cell, end_cell))
             break # all UAVs assigned
 
         elif len(sub_grids_left) < uavs_left:
@@ -284,8 +284,8 @@ def path_plan_swarm(all_sub_grids, uav_count):
 
             best_combination = valid_combo_with_smallest_area[0]
             best_partitions = [sub_grids_left[i] for i in best_combination] # (remember, best_combination holds indexes into sub_grids_left)
-            path, _, _, _ = one_uav_multi_partitions_path_plan(best_partitions)
-            path_per_uav.append(path)
+            path, start_cell, end_cell, _ = one_uav_multi_partitions_path_plan(best_partitions)
+            path_per_uav.append((path, start_cell, end_cell))
 
             
             ########## STEP 3: Remove assigned partitions from sub_grids_left ##########

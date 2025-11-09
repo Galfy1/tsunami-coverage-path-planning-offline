@@ -224,8 +224,8 @@ def main(args=None) -> None:
             # Find best candidate sweep line to split on:
 
             # Gap-severity is fine when a single drone covers all polygon partitions (as it does in the paper) (it yields good results).
-            # For our system, however, work is split across multiple UAVs - so ensuring partition areas are balanced
-            # between the UAVs is more important than optimizing gap-severity.
+            # For our system, however, work is split across multiple UAVs - so ensuring partition areas are balanced between the UAVs is 
+            # more important than optimizing gap-severity. That is, we use resulting partition area instead of gap severity to pick the "best" sweep line.
             # HOWEVER: At this step, simply choosing the sweep line that yields the best area balance between resulting partitions is not ideal either. 
             #          This is because of two subsequent steps:
             #               1: subsequent culling merging steps can merge partitions if the resulting partition is still a "regular" polygon

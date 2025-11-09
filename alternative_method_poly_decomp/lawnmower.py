@@ -274,6 +274,7 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                         break
                 if all_covered == False:
                     print("WARNING: path generation failed to cover all 1's in the grid.")
+                    print(f"non covered cell found at: {y_check}, {x_check}")
                     break
             break
 

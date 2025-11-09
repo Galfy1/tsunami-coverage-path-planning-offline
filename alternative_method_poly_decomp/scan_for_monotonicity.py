@@ -1,5 +1,6 @@
 from shapely.geometry import Polygon, Point, LineString
 import numpy as np
+from alternative_method_poly_decomp.shared_grid_tools import split_grid_along_sweep_line
 
 
 def scan_for_non_monotone_sections(grid: np.ndarray):
@@ -46,6 +47,40 @@ def scan_for_non_monotone_sections(grid: np.ndarray):
             non_monotone_sweep_lines.append((below_line, intersection_points, gap_severity))
 
             non_monotone_in_y = True
+        elif len(intersection_points) == 2:
+            # TODO måske lav en define til at enable disable det her
+            pass
+
+            # TODO nu ved jeg hvorfor den gør alt så langsomt... det fordi scan_for_non_monotone_sections også bliver brugt i culling_merging() og lawnmower()
+                            # det kan faktisk løses! for de behøver ikke de her ting vi tilføjer... aka, eventuelt lav et input flag til at "allow_asd" der slår det til of fra... for vi behøver det faktisk kun i poly_decomp_and_path_plan.py
+
+            # TODO  den version hvor jeg ikke early breaker virkede ... den her virker ikke for whatever reason..
+
+            # while(True): # this is just to allow easy early breaking for faster processing
+            
+            #     above_line = LineString([(p1_x, y + 1), (p2_x, y + 1)])
+            #     sub_grids = split_grid_along_sweep_line(grid, above_line)
+            #     if len(sub_grids) == 2:
+            #         # check if both resulting sub-grids are "regular" (i.e. monotone in either x or y)
+            #         _, is_regular_0, _, _ = scan_for_monotone_sections(sub_grids[0])
+            #         if is_regular_0 == False: break # early exit
+            #         _, is_regular_1, _, _ = scan_for_monotone_sections(sub_grids[1])
+            #         if is_regular_1 == False: break # early exit
+            #         non_monotone_sweep_lines.append((above_line, intersection_points, float('inf')))
+
+            #     below_line = LineString([(p1_x, y), (p2_x, y)])
+            #     sub_grids = split_grid_along_sweep_line(grid, below_line)
+            #     if len(sub_grids) == 2:
+            #         # check if both resulting sub-grids are "regular" (i.e. monotone in either x or y)
+            #         _, is_regular_0, _, _ = scan_for_monotone_sections(sub_grids[0])
+            #         if is_regular_0 == False: break # early exit
+            #         _, is_regular_1, _, _ = scan_for_monotone_sections(sub_grids[1])
+            #         if is_regular_1 == False: break # early exit
+            #         non_monotone_sweep_lines.append((below_line, intersection_points, float('inf')))
+            #     break
+
+            # TODO non_monotone_sweep_lines og scan_for_non_monotone_sections skal have nye navne hvis det her virker
+
 
     # go through all vertical sweep lines:
     p1_y = 0
@@ -84,6 +119,33 @@ def scan_for_non_monotone_sections(grid: np.ndarray):
             non_monotone_sweep_lines.append((right_line, intersection_points, gap_severity))
 
             non_monotone_in_x = True
+        elif len(intersection_points) == 2:
+            # TODO måske lav en define til at enable disable det her
+            pass
+            
+            # while(True): # this is just to allow easy early breaking for faster processing
+            #     above_line = LineString([(p1_x, y + 1), (p2_x, y + 1)])
+            #     sub_grids = split_grid_along_sweep_line(grid, above_line)
+            #     if len(sub_grids) == 2:
+            #         # check if both resulting sub-grids are "regular" (i.e. monotone in either x or y)
+            #         _, is_regular_0, _, _ = scan_for_monotone_sections(sub_grids[0]) 
+            #         if is_regular_0 == False: break # early exit
+            #         _, is_regular_1, _, _ = scan_for_monotone_sections(sub_grids[1])
+            #         if is_regular_1 == False: break # early exit
+            #         non_monotone_sweep_lines.append((above_line, intersection_points, float('inf')))
+
+            #     below_line = LineString([(p1_x, y), (p2_x, y)])
+            #     sub_grids = split_grid_along_sweep_line(grid, below_line)
+            #     if len(sub_grids) == 2:
+            #         # check if both resulting sub-grids are "regular" (i.e. monotone in either x or y)
+            #         _, is_regular_0, _, _ = scan_for_monotone_sections(sub_grids[0])
+            #         if is_regular_0 == False: break # early exit
+            #         _, is_regular_1, _, _ = scan_for_monotone_sections(sub_grids[1])
+            #         if is_regular_1 == False: break # early exit
+            #         non_monotone_sweep_lines.append((below_line, intersection_points, float('inf')))
+            #     break 
+
+                # TODO non_monotone_sweep_lines og scan_for_non_monotone_sections skal have nye navne hvis det her virker
 
     is_irregular = non_monotone_in_x and non_monotone_in_y
 

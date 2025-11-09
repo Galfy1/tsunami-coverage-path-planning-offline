@@ -24,12 +24,13 @@ from alternative_method_poly_decomp.lawnmower import lawnmower
 from alternative_method_poly_decomp.scan_for_monotonicity import scan_for_non_monotone_sections, scan_for_monotone_sections
 from alternative_method_poly_decomp.shared_grid_tools import are_grids_adjacent, split_grid_along_sweep_line
 from alternative_method_poly_decomp.swarm_path_planning import path_plan_swarm
+from matplotlib.collections import LineCollection
 
 
 #DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
 DRONE_START = (56.1672192716924, 10.152786411345) # for "paper_recreate.poly"
 CAMERA_COVERAGE_LEN = 1 # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
-UAV_COUNT = 2
+UAV_COUNT = 1
 
 ENABLE_PLOTTING = True
 
@@ -161,29 +162,12 @@ def culling_merging(all_sub_grids):
                         break # exit inner loop to restart checking with new merged grid
                     else:
                         print("LLLLLLLLLLLL")
-                    # else:
-                    #     # no merge happened, keep the sub-grid as is
-                    #     new_sub_grids_pack.append(sub_grid)
-                    #     ignore_grids.append(sub_grid)
-                # else:
-                #     # not adjacent, keep the sub-grid as is
-                #     new_sub_grids_pack.append(sub_grid)
-                #     ignore_grids.append(sub_grid)
+ 
 
             if local_merge_happened == False:
                 # no merge happened for this sub-grid, keep it as is
                 new_sub_grids_pack.append(sub_grid)
                 ignore_grids.append(sub_grid)
-
-
-
-        #  Stop prematurely if we have equal or less sub-grids than UAVs (to avoid low UAV utilization)
-        # if len(new_sub_grids_pack) <= UAV_COUNT_HMMM:
-        #     # if we have less sub-grids than UAVs, keep the previous pack instead
-        #     all_sub_grids_after_culling = sub_grids_pack.copy()
-        #     print("999. subgrids len:", len(sub_grids_pack))
-        #     break
-
 
 
         if merge_happened:
@@ -197,77 +181,6 @@ def culling_merging(all_sub_grids):
     #print(f"asdasd {all_sub_grids_after_culling}")
 
     return all_sub_grids_after_culling
-
-
-
-
-
-
-
-# def total_cost(candidate_list, order):
-#     first_term = sum(c['internal_loss'] for c in candidate_list)
-#     second_term = 0
-#     for i in range(len(order)-1):
-#         end_cell_current = np.array(candidate_list[order[i]]['end_cell'])
-#         start_cell_next = np.array(candidate_list[order[i+1]]['start_cell'])
-#         dist = np.linalg.norm(end_cell_current - start_cell_next)
-#         second_term += dist
-#     return first_term + second_term
-
-
-# def find_best_order(candidate_list):
-#     best_order = None
-#     best_cost = float('inf')
-#     for order in itertools.permutations(range(len(candidate_list))):
-#         cost = total_cost(candidate_list, order)
-#         if cost < best_cost:
-#             best_cost = cost
-#             best_order = order
-#     return best_order, best_cost
-
-
-
-
-
-
-
-
-
-# def will_subgrid_removal_split_main_grid(grid: np.ndarray, subgrids_to_remove: np.ndarray):
-#     # TODO er det her en god måde at gøre det på... det sikre ihvertfald at den der fejl ikke kan ske. men det er ikke optimialt, da ASD
-#     # VI ER I STEDET NØDT TIL AT tjekke split_subgrids resultatet.. for hvis den er over 1 kan den stadig være valid HVIS der er partition_count_for_uav i hvert splittet del
-
-#     # remove subgrid from main grid (we call the result "modified_grid" )
-#     modified_grid = np.copy(grid)
-#     for y in range(grid.shape[0]):
-#         for x in range(grid.shape[1]):
-#             for subgrid in subgrids_to_remove:
-#                 if subgrid[y][x] == 1:
-#                     modified_grid[y][x] = 0
-
-#     # we can use split_grid_with_disconnected_sections() to check if a split would occur
-#     split_subgrids = split_grid_with_disconnected_sections(modified_grid)
-#     if len(split_subgrids) > 1:
-#         return True
-#     else:
-#         return False
-
-    
-
-
-
-
-
-
-
-
-    
-    
-
-
-
-
-
 
 
 
@@ -376,29 +289,65 @@ def main(args=None) -> None:
 
 
 def plot_path_per_uav(fly_grid: np.ndarray, culling_merged_grids: list, path_per_uav: list):
+
     n = len(culling_merged_grids)
     print(f"Decomposition resulted in {n} regular sub-polygons")
 
     fig, ax = plt.subplots(figsize=(8, 8))
-    #ax.imshow(fly_grid, cmap='Greys', origin='lower', alpha=0.3, vmin=0, vmax=1)
 
-    if n > 0:
-        combined = np.zeros_like(fly_grid, dtype=int)
-        for idx, sub_grid in enumerate(culling_merged_grids, start=1):
-            combined = np.where(sub_grid == 1, idx, combined)
+    # Build combined label grid: 0 = background, 1..n = sub-grids
+    combined = np.zeros_like(fly_grid, dtype=int)
+    for idx, sub_grid in enumerate(culling_merged_grids, start=1):
+        combined = np.where(sub_grid == 1, idx, combined)
 
-        base_cmap = plt.cm.get_cmap('tab20', n)
-        color_positions = np.linspace(0.2, 0.8, n)
-        colors = [(0, 0, 0, 0)] + [base_cmap(pos) for pos in color_positions]
-        cmap = ListedColormap(colors)
+    # Show all sub-grids in the same fill color (single color mask)
+    if np.any(combined > 0):
+        mask = (combined > 0).astype(int)
+        # Use a colormap where 0 is transparent and 1 is the chosen fill color
+        # fill_color = (0.85, 0.9, 1.0, 0.8)  # subgrid color (rgba) - light bluish
+        # cmap = ListedColormap([(1, 0, 0, 1), fill_color]) # background color
+        fill_color = (0.85, 0.9, 1.0, 0.7)  # subgrid color (rgba) - light bluish
+        cmap = ListedColormap([(0.941, 0.894, 0.569, 0.05), fill_color]) # background color
+        ax.imshow(mask, cmap=cmap, origin='lower', vmin=0, vmax=1)
 
-        ax.imshow(combined, cmap=cmap, origin='lower', alpha=0.9, vmin=0, vmax=n)
-        ax.set_title("Regular sub-grids overlayed on original grid")
+    # Draw divider lines between different sub-grids
+    h, w = combined.shape
+    vert_segments = []
+    horz_segments = []
+    for y in range(h):
+        for x in range(w):
+            lbl = combined[y, x]
+            # vertical edge between pixels (boundary at x+0.5) for row y: span from y-0.5 to y+0.5
+            if x + 1 < w:
+                if combined[y, x + 1] != lbl:
+                    # only draw if at least one side is part of a sub-grid (non-zero)
+                    if lbl != 0 or combined[y, x + 1] != 0:
+                        x_pos = x + 0.5
+                        vert_segments.append([(x_pos, y - 0.5), (x_pos, y + 0.5)])
+            # horizontal edge between pixels (boundary at y+0.5) for column x: span from x-0.5 to x+0.5
+            if y + 1 < h:
+                if combined[y + 1, x] != lbl:
+                    if lbl != 0 or combined[y + 1, x] != 0:
+                        y_pos = y + 0.5
+                        horz_segments.append([(x - 0.5, y_pos), (x + 0.5, y_pos)])
+
+    segments = vert_segments + horz_segments
+    if segments:
+        lc = LineCollection(segments, colors='black', linewidths=2)
+        ax.add_collection(lc)
+
+    ax.set_title("Regular sub-grids (single fill) with divider lines")
 
     # Plot paths for each UAV
     for uav_idx, path in enumerate(path_per_uav):
-        xs = [p[1] for p in path]
-        ys = [p[0] for p in path]
+        if not path:
+            continue
+        try:
+            xs = [p[1] for p in path]
+            ys = [p[0] for p in path]
+        except Exception:
+            # if path is not a list of (y,x) coordinates, skip
+            continue
         ax.plot(xs, ys, linewidth=1.5, marker='o', markersize=3, label=f'UAV {uav_idx+1} path')
 
     ax.legend(loc='upper right', fontsize='small')

@@ -1,6 +1,7 @@
 
 # THIS HAS NOTHING TO DO WITH TSUNAMI - ITS AN POLYGON DECOMPOSITION FOR COMPARISON PURPOSES
 # Decomp method based on https://arxiv.org/abs/2505.08060v1
+# NOTE: when "the paper" is mentioned in comments, it refers to the above linked paper
 
 import csv
 from shapely.geometry import Polygon, Point, LineString
@@ -33,6 +34,29 @@ DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
 CAMERA_COVERAGE_LEN = 1 # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
 UAV_COUNT = 2
 
+BEST_SWEEP_LINE_METHOD = 'area_balance' # 'gap_severity' or 'area_balance'.
+                                        # Gap-severity is fine when a single drone covers all polygon partitions (as it does in the paper) (it yields good results).
+                                        # For our system, however, work is split across multiple UAVs - so ensuring partition areas are balanced between the UAVs is 
+                                        # more important than optimizing gap-severity. That is, we use resulting partition area instead of gap severity to pick the "best" sweep line.
+                                        # HOWEVER: At this step, simply choosing the sweep line that yields the best area balance between resulting partitions is not ideal either. 
+                                        #          This is because of subsequent steps:
+                                        #               1: subsequent culling merging steps can merge partitions if the resulting partition is still a "regular" polygon
+                                        #                   (i.e. the partition areas are changed)
+                                        #               2: subsequent path planning steps can combine the coverage of a single UAV across multiple partitions. 
+                                        #                   (i.e. the actual partion area does not change. But, the coverage area for each UAV does - which is what we actually care about)
+                                        #          Also:
+                                        #               * If a similar area balance exists between a horizontal and a vertical sweep line, this method will simply select the first (if their balances are equal) 
+                                        #                 instead of choosing the one that would result in better future paths (e.g., lower loss).
+                                        #          Solving these issues is non-trivial, as it would require information about the results of future processing steps.
+                                        
+                                        # TODO i rapporten vis et plot med gap severity.. og hvis hvorfor det ikke er så godt for vores system
+                                                # og så selvfølgelig nævn alt ovenfor. og også nævn det i en future work afsnit, hvad man kunne gøre.
+ALLOW_VALID_MONOTONE_IN_SECTION_SCAN = False # also allow "valid" monotone sweep lines when scanning for non-monotone sections (valid: 2 regular partitions when using it to split)
+                                            # why? setting this to True can potentially result in better splits. HOWEVER, processing time is longer.
+                                            # (THIS OPTION IS NOT RELEVANT IF "gap_severity" METHOD IS USED FOR BEST SWEEP LINE SELECTION- since monotone sweep lines has no gaps)
+                                            # (the https://arxiv.org/abs/2505.08060v1 paper done use this option (i.e. False), but they also only have a single UAV covering all partitions - so gap severity is used instead)
+                                            # TODO i rapporten. vis et eksempel på hvor denne option gør tingene en del bedre (irregular_poly med UAV_COUNT=2, CAMERA_COVERAGE_LEN=1, area_balance og så True og False til den her option)
+
 ENABLE_PLOTTING = True
 
 
@@ -40,7 +64,8 @@ ENABLE_PLOTTING = True
 #       APART FROM: Shapely stuff (e.g. Polygon, Linestring), that is (x,y) to match shapely convention
 
 
-# TODO er ikke sikker på "regular" og "irregular" er defineret korrekt .. men det er sådan de kalder det i artiklen?
+# NOTE: the definitions of "regular" and "irregular" polygons used here are based on the definitions in the paper:
+#       a polygon is "regular" if it is monotone for all sweep lines in at least one direction (x or y)
 
 
 n_neighbors = 8
@@ -87,7 +112,6 @@ def _plot_grid(grid: np.ndarray, title: str = "Grid"):
 # TODO skriv at den ikke altid finder den bedste solution... f.eks. for irregular_poly med uav 2 --> her ville det være beder bare at cutte polyen i 2 på midten.
                                                                                                     # men vi cutter kun ved ikke-monotone sweel lines.
     
-#UAV_COUNT_HMMM = 10
 
 
 # find best sweel line (to split on) based on gap severity
@@ -106,7 +130,7 @@ def find_best_sweep_line_gap_severity(non_monotone_sweep_lines: List[LineString]
 def find_best_sweep_line_area_balance(non_monotone_sweep_lines: List[LineString], grid: np.ndarray, banned_sweep_lines: List[LineString]) -> LineString:
     best_balance = math.inf
     selected_sweep_line = None
-    for sweep_line, _ , gap_severity in non_monotone_sweep_lines:
+    for sweep_line, _ , _ in non_monotone_sweep_lines:
         if sweep_line in banned_sweep_lines:
             continue # skip already used sweep lines
 
@@ -169,6 +193,7 @@ def find_best_sweep_line_area_balance(non_monotone_sweep_lines: List[LineString]
         if max_area == 0:
             continue # avoid division by zero
         balance = (max_area - min_area) / max_area  # relative balance measure
+        # print(f"Sweep line {sweep_line} results in area balance: {balance}. best so far: {best_balance}")
         if balance < best_balance:
             best_balance = balance
             selected_sweep_line = sweep_line
@@ -213,7 +238,7 @@ def main(args=None) -> None:
 
         grid = grid_queue.popleft()
 
-        non_monotone_sweep_lines, grid_is_irregular, _, _ = scan_for_non_monotone_sections(grid)
+        non_monotone_sweep_lines, grid_is_irregular, _, _ = scan_for_non_monotone_sections(grid, allow_valid_monotone=ALLOW_VALID_MONOTONE_IN_SECTION_SCAN)
 
 
         # Check if "polygon" is irregular (i.e., non–monotone in both directions)
@@ -221,22 +246,13 @@ def main(args=None) -> None:
             print("Polygon is irregular (non-monotone in both directions)")
             # We need to split!
 
-            # Find best candidate sweep line to split on:
-
-            # Gap-severity is fine when a single drone covers all polygon partitions (as it does in the paper) (it yields good results).
-            # For our system, however, work is split across multiple UAVs - so ensuring partition areas are balanced between the UAVs is 
-            # more important than optimizing gap-severity. That is, we use resulting partition area instead of gap severity to pick the "best" sweep line.
-            # HOWEVER: At this step, simply choosing the sweep line that yields the best area balance between resulting partitions is not ideal either. 
-            #          This is because of two subsequent steps:
-            #               1: subsequent culling merging steps can merge partitions if the resulting partition is still a "regular" polygon
-            #                   (i.e. the partition areas are changed)
-            #               2: subsequent path planning steps can combine the coverage of a single UAV across multiple partitions. 
-            #                   (i.e. the actual partion area does not change. But, the coverage area for each UAV does - which is what we actually care about)
-            # TODO i rapporten vis et plot med gap severity.. og hvis hvorfor det ikke er så godt for vores system
-                    # og så selvfølgelig nævn alt ovenfor. og også nævn det i en future work afsnit, hvad man kunne gøre.
-
-            #selected_sweep_line = find_best_sweep_line_gap_severity(non_monotone_sweep_lines, banned_sweep_lines)
-            selected_sweep_line = find_best_sweep_line_area_balance(non_monotone_sweep_lines, grid, banned_sweep_lines)
+            # Find best candidate sweep line to split on (see BEST_SWEEP_LINE_METHOD definition above for details):
+            if BEST_SWEEP_LINE_METHOD == 'gap_severity':
+                selected_sweep_line = find_best_sweep_line_gap_severity(non_monotone_sweep_lines, banned_sweep_lines)
+            elif BEST_SWEEP_LINE_METHOD == 'area_balance':
+                selected_sweep_line = find_best_sweep_line_area_balance(non_monotone_sweep_lines, grid, banned_sweep_lines)
+            else:
+                raise ValueError(f"Unknown BEST_SWEEP_LINE_METHOD: {BEST_SWEEP_LINE_METHOD}")
 
 
             if selected_sweep_line is None:

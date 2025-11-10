@@ -128,23 +128,21 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
                 adjx = x + dx_8way[direction]
                 adjy = y + dy_8way[direction]
                 if 0 <= adjy < grid.shape[0] and 0 <= adjx < grid.shape[1]: # within bounds check
-                    if grid[adjy, adjx] == 1: # only care about connected cells
+                    if grid[adjy, adjx] == 1 and (adjy, adjx) not in path: # only care about connected cells thats not in path
                         # found a connected neighbor
                         neighbors_index.append(direction)
             if len(neighbors_index) == 1 and neighbors_index[0] in diagonal_indices_8way:
                 # we have a lonely cell only connected diagonally!
-                # try to move into that cell first (if not already in path)
                 diag_direction = neighbors_index[0]
                 adjx = x + dx_8way[diag_direction]
                 adjy = y + dy_8way[diag_direction]
-                if (adjy, adjx) not in path: # in not already in path
-                    # move into the diagonal cell
-                    x = adjx
-                    y = adjy
-                    primary = get_primary(y, x)
-                    secondary = get_secondary(y, x)
-                    path.append((y, x))
-            
+                # move into the diagonal cell
+                x = adjx
+                y = adjy
+                primary = get_primary(y, x)
+                secondary = get_secondary(y, x)
+                path.append((y, x))
+        
 
             # Sweep in primary direction (untill hitting a boundary or visited cell)
             while (0 <= primary + primary_dir < primary_size): # break if hitting outer grid limits

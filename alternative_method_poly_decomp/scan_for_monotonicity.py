@@ -50,9 +50,9 @@ def scan_for_non_monotone_sections(grid: np.ndarray, allow_valid_monotone: bool 
 
             non_monotone_in_y = True
         elif len(intersection_points) == 2:
-            # TODO måske lav en define til at enable disable det her
-
             if allow_valid_monotone:
+                # Note: This might result in some duplicate entries in non_monotone_sweep_lines.
+                #       However, its faster to allow duplicates here and handle them later if needed, than to check for duplicates here - so we dont.
 
                 # TODO nu ved jeg hvorfor den gør alt så langsomt... det fordi scan_for_non_monotone_sections også bliver brugt i culling_merging() og lawnmower()
                                 # det kan faktisk løses! for de behøver ikke de her ting vi tilføjer... aka, eventuelt lav et input flag til at "allow_asd" der slår det til of fra... for vi behøver det faktisk kun i poly_decomp_and_path_plan.py
@@ -132,9 +132,9 @@ def scan_for_non_monotone_sections(grid: np.ndarray, allow_valid_monotone: bool 
 
             non_monotone_in_x = True
         elif len(intersection_points) == 2:
-            # TODO måske lav en define til at enable disable det her
-            
             if allow_valid_monotone:
+                # Note: This might result in some duplicate entries in non_monotone_sweep_lines.
+                #       However, its faster to allow duplicates here and handle them later if needed, than to check for duplicates here - so we dont.
             
                 # while(True): # this is just to allow easy early breaking for faster processing
                 above_line = LineString([(p1_x, y + 1), (p2_x, y + 1)])
@@ -168,7 +168,7 @@ def scan_for_non_monotone_sections(grid: np.ndarray, allow_valid_monotone: bool 
                 # TODO non_monotone_sweep_lines og scan_for_non_monotone_sections skal have nye navne hvis det her virker
 
     is_irregular = non_monotone_in_x and non_monotone_in_y
-
+ 
     return non_monotone_sweep_lines, is_irregular, non_monotone_in_x, non_monotone_in_y
 
 

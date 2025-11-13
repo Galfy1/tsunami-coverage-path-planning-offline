@@ -6,12 +6,7 @@
 import csv
 from shapely.geometry import Polygon, Point, LineString
 import numpy as np
-import math
-from collections import deque as queue
 import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
-from matplotlib.collections import LineCollection
-from typing import List
 import pickle
 import os
 import sys
@@ -22,15 +17,14 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # Our imports
 from shared_tools.custom_cell_tools import dx_4way, dy_4way, dx_8way, dy_8way
 from shared_tools.create_grid_from_poly import create_grid_from_polygon_and_noflyzones
-from alternative_method_poly_decomp.lawnmower import lawnmower
-from alternative_method_poly_decomp.shared_grid_tools import split_grid_along_sweep_line, are_grids_adjacent
-from alternative_method_poly_decomp.scan_for_monotonicity import scan_for_non_monotone_sections
 from alternative_method_poly_decomp.swarm_path_planning import path_plan_swarm
-from alternative_method_poly_decomp.culling_merging import culling_merging, merge_grids
+from alternative_method_poly_decomp.culling_merging import culling_merging
+from alternative_method_poly_decomp.plotting import plot_path_per_uav
+from alternative_method_poly_decomp.extract_regular_subgrids import extract_regular_subgrids
 
 
-DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
-#DRONE_START = (56.1672192716924, 10.152786411345) # for "paper_recreate.poly"
+#DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
+DRONE_START = (56.1672192716924, 10.152786411345) # for "paper_recreate.poly"
 CAMERA_COVERAGE_LEN = 1 # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
 UAV_COUNT = 2
 
@@ -114,149 +108,7 @@ def _plot_grid(grid: np.ndarray, title: str = "Grid"):
     
 
 
-# find best sweel line (to split on) based on gap severity
-def find_best_sweep_line_gap_severity(non_monotone_sweep_lines: List[LineString], banned_sweep_lines: List[LineString]) -> LineString:
-    max_gap_severity = -1
-    selected_sweep_line = None
-    for sweep_line, _ , gap_severity in non_monotone_sweep_lines:
-        if sweep_line in banned_sweep_lines:
-            continue # skip already used sweep lines
-        if gap_severity > max_gap_severity:
-            max_gap_severity = gap_severity
-            selected_sweep_line = sweep_line
-    return selected_sweep_line
 
-
-def find_best_sweep_line_area_balance(non_monotone_sweep_lines: List[LineString], grid: np.ndarray, banned_sweep_lines: List[LineString]) -> LineString:
-    best_balance = math.inf
-    selected_sweep_line = None
-    for sweep_line, _ , _ in non_monotone_sweep_lines:
-        if sweep_line in banned_sweep_lines:
-            continue # skip already used sweep lines
-
-        #print(f"Evaluating sweep line: {sweep_line}")
-
-        # Split grid along this sweep line
-        sub_grids = split_grid_along_sweep_line(grid, sweep_line)
-        if len(sub_grids) < 2:  # TODO 
-            continue 
-            # TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!! 
-            #raise ValueError("Sweep line did not split the grid into multiple sub-grids") # this should not happen
-
-        # TODO fix problemer i den nuværende polygon (måske noget at gøre med 1px halløj der)
-
-        # TODO: hvis det skulle være rigtig godt, så skulle man tage uav_count med i betragtning her....
-            # så den ikke bare splitter efter efter balance mellem subgrids... men den samler subgrids så det passer til hvordan fordelingen serner vil være i path planning
-                        # måske skal den her bruge? partition_count_for_uav = math.ceil(len(sub_grids_left) / uavs_left)
-                        # men det er meget svært... fordi partition_count_for_uav ændre sig over tid, som path planningen går along
-                # POTENTIEL lØSNING: hvis subgrid count er højere end uav count, samler man bare de to mindste subgrids (area wise) indtil subgrid count matcher uav count
-                                    # og så er det de partions der bruges i area balance målingen her
-                                    # men husk.. det skal ikke bare være de 2 mindste.. det skal være de 2 mindste der er connected (samme tjek vi laver i swarm_path_planning halløjet)
-        # # TODO GIVER ALT DET HER OVERHOEVEDET MENING!??!?!?! FOR CULLING MERGE KAN JO BARE SAMLE DEM IGEN SENERE... OG SÅ AREA HALLØJET I VASKEN
-        # while len(sub_grids) > UAV_COUNT:
-        #     # find the two smallest connected sub-grids and merge them
-        #     min_area = math.inf
-        #     grids_to_merge = (None, None)
-        #     for i in range(len(sub_grids)):
-        #         for j in range(i + 1, len(sub_grids)):
-        #             if are_grids_adjacent(sub_grids[i], sub_grids[j]):
-        #                 area = np.sum(sub_grids[i]) + np.sum(sub_grids[j])
-        #                 if area < min_area:
-        #                     min_area = area
-        #                     grids_to_merge = (i, j)
-        #     if grids_to_merge[0] is not None and grids_to_merge[1] is not None:
-        #         merged_grid = merge_grids(sub_grids[grids_to_merge[0]], sub_grids[grids_to_merge[1]])
-        #         # remove the two grids and add the merged grid
-        #         new_sub_grids = []
-        #         for k in range(len(sub_grids)):
-        #             if k != grids_to_merge[0] and k != grids_to_merge[1]:
-        #                 new_sub_grids.append(sub_grids[k])
-        #         new_sub_grids.append(merged_grid)
-        #         sub_grids = new_sub_grids
-        #     else:
-        #         break  # no more connected grids to merge
-        # # find sweep line that results in best area balance between all sub-grids (remember, there might be more than 2 sub-grids)
-        # areas = [np.sum(sg) for sg in sub_grids]
-        # max_area = max(areas)
-        # min_area = min(areas)
-        # if max_area == 0:
-        #     continue # avoid division by zero
-        # balance = (max_area - min_area) / max_area  # relative balance measure
-        # if balance < best_balance:
-        #     best_balance = balance
-        #     selected_sweep_line = sweep_line
-
-        # find sweep line that results in best area balance between all sub-grids (remember, there might be more than 2 sub-grids)
-        areas = [np.sum(sg) for sg in sub_grids]
-        max_area = max(areas)
-        min_area = min(areas)
-        if max_area == 0:
-            continue # avoid division by zero
-        balance = (max_area - min_area) / max_area  # relative balance measure
-        # print(f"Sweep line {sweep_line} results in area balance: {balance}. best so far: {best_balance}")
-        if balance < best_balance:
-            best_balance = balance
-            selected_sweep_line = sweep_line
-
-
-    return selected_sweep_line
-
-
-
-def extract_regular_subgrids(fly_grid: np.ndarray, best_sweep_line_method: str) -> List[np.ndarray]:
-    regular_grids_result = []
-
-    banned_sweep_lines = [] # to avoid selecting the same sweep line multiple times TODO
-
-    # go though each "candidate sweep line" and check for non-monotone sections
-
-    grid_queue = queue() # queue of grid/subgrids to be processed
-    grid_queue.append(fly_grid)
-
-    while(len(grid_queue) > 0):
-
-        grid = grid_queue.popleft()
-
-        non_monotone_sweep_lines, grid_is_irregular, _, _ = scan_for_non_monotone_sections(grid, allow_valid_monotone=ALLOW_VALID_MONOTONE_IN_SECTION_SCAN)
-
-
-        # Check if "polygon" is irregular (i.e., non–monotone in both directions)
-        if grid_is_irregular:
-            print("Polygon is irregular (non-monotone in both directions)")
-            # We need to split!
-
-            # Find best candidate sweep line to split on (see BEST_SWEEP_LINE_METHOD definition above for details):
-            if BEST_SWEEP_LINE_METHOD == 'gap_severity':
-                selected_sweep_line = find_best_sweep_line_gap_severity(non_monotone_sweep_lines, banned_sweep_lines)
-            elif BEST_SWEEP_LINE_METHOD == 'area_balance':
-                selected_sweep_line = find_best_sweep_line_area_balance(non_monotone_sweep_lines, grid, banned_sweep_lines)
-            else:
-                raise ValueError(f"Unknown BEST_SWEEP_LINE_METHOD: {BEST_SWEEP_LINE_METHOD}")
-
-
-            if selected_sweep_line is None:
-                print("No valid sweep line found for splitting (all previously used). Stopping further decomposition.")
-                regular_grids_result.append(grid)
-                continue
-
-            banned_sweep_lines.append(selected_sweep_line)
-            print(f"Selected sweep line for splitting: {selected_sweep_line}")
-
-            # Split grid along selected sweep line
-            sub_grids = split_grid_along_sweep_line(grid, selected_sweep_line)
-
-            #print(f"Split grid into {len(sub_grids)} sub-grids along sweep line")
-
-            # add sub-grids to queue for further processing
-            for sub_grid in sub_grids:
-                grid_queue.append(sub_grid)
-        else:
-            print("Polygon is regular (monotone in at least one direction)")
-            # store the regular grid
-            regular_grids_result.append(grid)
-
-
-    return regular_grids_result
 
 
 def main(args=None) -> None:
@@ -267,7 +119,7 @@ def main(args=None) -> None:
     # TODO irregular_poly
     # TODO totally_mono.py
     # TODO paper_recreate.poly
-    with open('alternative_method_poly_decomp/irregular_poly.poly','r') as f: 
+    with open('alternative_method_poly_decomp/paper_recreate.poly','r') as f: 
         reader = csv.reader(f,delimiter=' ')
         for row in reader:
             if(row[0] == '#saved'): continue # skip header
@@ -282,7 +134,7 @@ def main(args=None) -> None:
     fly_grid, _ , _ , _ , _ , _  = create_grid_from_polygon_and_noflyzones(polygon, [], DRONE_START, CAMERA_COVERAGE_LEN)
     # (fly_grid is a 2D numpy array where 1 = flyable, 0 = no-fly zone - (y,x) indexing)
 
-    regular_grids_result = extract_regular_subgrids(fly_grid, BEST_SWEEP_LINE_METHOD)
+    regular_grids_result = extract_regular_subgrids(fly_grid, BEST_SWEEP_LINE_METHOD, ALLOW_VALID_MONOTONE_IN_SECTION_SCAN)
 
     # After processing all grids, perform culling/merging step 
     culling_merged_grids = culling_merging(regular_grids_result)
@@ -313,229 +165,7 @@ def main(args=None) -> None:
 
 
 
-def plot_path_per_uav(fly_grid: np.ndarray, culling_merged_grids: list, path_per_uav: list):
-    n = len(culling_merged_grids)
-    print(f"Decomposition resulted in {n} regular sub-polygons")
 
-    fig, ax = plt.subplots(figsize=(8, 8))
-
-    # Build a combined label grid so each cell knows its sub-grid id
-    combined = np.zeros_like(fly_grid, dtype=int)
-    for idx, sub_grid in enumerate(culling_merged_grids, start=1):
-        combined = np.where(sub_grid == 1, idx, combined)
-
-    # Lightly fill areas covered by any sub-grid
-    if np.any(combined > 0):
-        mask = (combined > 0).astype(int)
-        fill_color = (0.85, 0.9, 1.0, 0.7)
-        cmap = ListedColormap([(0.941, 0.894, 0.569, 0.05), fill_color])
-        ax.imshow(mask, cmap=cmap, origin='lower', vmin=0, vmax=1)
-
-    # Collect grid divider segments between different sub-grids
-    h, w = combined.shape
-    vert_segments = []
-    horz_segments = []
-    for y in range(h):
-        for x in range(w):
-            lbl = combined[y, x]
-            if x + 1 < w and combined[y, x + 1] != lbl:
-                if lbl != 0 or combined[y, x + 1] != 0:
-                    x_pos = x + 0.5
-                    vert_segments.append([(x_pos, y - 0.5), (x_pos, y + 0.5)])
-            if y + 1 < h and combined[y + 1, x] != lbl:
-                if lbl != 0 or combined[y + 1, x] != 0:
-                    y_pos = y + 0.5
-                    horz_segments.append([(x - 0.5, y_pos), (x + 0.5, y_pos)])
-
-    # Ensure outer boundaries of sub-grids are plotted
-    boundary_segments = []
-    for y in range(h):
-        for x in range(w):
-            if combined[y, x] == 0:
-                continue
-            if x == 0:
-                boundary_segments.append([(x - 0.5, y - 0.5), (x - 0.5, y + 0.5)])
-            if x == w - 1:
-                boundary_segments.append([(x + 0.5, y - 0.5), (x + 0.5, y + 0.5)])
-            if y == 0:
-                boundary_segments.append([(x - 0.5, y - 0.5), (x + 0.5, y - 0.5)])
-            if y == h - 1:
-                boundary_segments.append([(x - 0.5, y + 0.5), (x + 0.5, y + 0.5)])
-
-    segments = vert_segments + horz_segments + boundary_segments
-    if segments:
-        lc = LineCollection(segments, colors='black', linewidths=2.5)
-        ax.add_collection(lc)
-
-    ax.set_title("Regular sub-grids (single fill) with divider lines")
-
-    start_points = []
-    end_points = []
-
-    # Plot each UAV path and record their start/end cells
-    for uav_idx, entry in enumerate(path_per_uav):
-        if not entry:
-            continue
-        path, start_cell, end_cell = entry
-        if path:
-            xs = [p[1] for p in path]
-            ys = [p[0] for p in path]
-            ax.plot(xs, ys, linewidth=1.5, marker='o', markersize=3, label=f'UAV {uav_idx+1} path')
-        if start_cell is not None:
-            start_points.append(start_cell)
-        if end_cell is not None:
-            end_points.append(end_cell)
-
-    # Show start/end points on top of the paths
-    if start_points:
-        sx = [p[1] for p in start_points]
-        sy = [p[0] for p in start_points]
-        ax.scatter(sx, sy, color='green', s=30, label='Start (green)', zorder=5)
-    if end_points:
-        ex = [p[1] for p in end_points]
-        ey = [p[0] for p in end_points]
-        ax.scatter(ex, ey, color='red', s=30, label='End (red)', zorder=5)
-
-    ax.legend(loc='upper right', fontsize='small')
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    ax.set_aspect('equal')
-    plt.tight_layout()
-    plt.show()
-
-
-# (used for the explanation in the report)
-def plot_sweepline_example(fly_grid: np.ndarray, culling_merged_grids: list):
-    n = len(culling_merged_grids)
-    print(f"Decomposition resulted in {n} regular sub-polygons")
-
-    fig, ax = plt.subplots(figsize=(8, 8))
-
-    # Build a combined label grid so each cell knows its sub-grid id
-    combined = np.zeros_like(fly_grid, dtype=int)
-    for idx, sub_grid in enumerate(culling_merged_grids, start=1):
-        combined = np.where(sub_grid == 1, idx, combined)
-
-    # Lightly fill areas covered by any sub-grid
-    if np.any(combined > 0):
-        mask = (combined > 0).astype(int)
-        fill_color = (0.376, 0.376, 0.376, 1.0)
-        cmap = ListedColormap([(0.941, 0.894, 0.569, 0.05), fill_color])
-        ax.imshow(mask, cmap=cmap, origin='lower', vmin=0, vmax=1)
-
-    h, w = fly_grid.shape
-    ax.set_xlim(-0.5, w - 0.5)
-    ax.set_ylim(-0.5, h - 0.5)
-    # plot some example sweep lines:
-    sweepline = LineString([(-0.5, 3), (w - 0.5, 3)]) #horizontal
-    x_sweepline, y_sweepline = sweepline.xy
-    ax.plot(x_sweepline, y_sweepline, color='mediumblue', linewidth=2, label='example monotone sweep lines')
-    sweepline = LineString([(5, -0.5), (5, h - 0.5)]) #vertical
-    x_sweepline, y_sweepline = sweepline.xy
-    ax.plot(x_sweepline, y_sweepline, color='mediumblue', linewidth=2)
-    sweepline = LineString([(12, -0.5), (12, h - 0.5)]) #vertical
-    x_sweepline, y_sweepline = sweepline.xy
-    ax.plot(x_sweepline, y_sweepline, color='tomato', linewidth=2, label='example non-monotone sweep lines')
-    sweepline = LineString([(-0.5, 25), (w - 0.5, 25)]) #horizontal
-    x_sweepline, y_sweepline = sweepline.xy
-    ax.plot(x_sweepline, y_sweepline, color='tomato', linewidth=2)
-
-    ax.legend(loc='upper right')#, fontsize='small')
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    ax.set_aspect('equal')
-    plt.tight_layout()
-    plt.show()
-
-def _debug_plot_subgrid(fly_grid: np.ndarray, culling_merged_grids: list, plot_paths: bool = True, best_path_debug=None, start_cell=None, end_cell=None):
-
-    n = len(culling_merged_grids)
-    print(f"Decomposition resulted in {n} regular sub-polygons")
-
-    fig, ax = plt.subplots(figsize=(8, 8))
-    #ax.imshow(fly_grid, cmap='Greys', origin='lower', alpha=0.3, vmin=0, vmax=1)
-
-    if n > 0:
-        combined = np.zeros_like(fly_grid, dtype=int)
-        for idx, sub_grid in enumerate(culling_merged_grids, start=1):
-            combined = np.where(sub_grid == 1, idx, combined)
-
-        base_cmap = plt.cm.get_cmap('tab20', n)
-        color_positions = np.linspace(0.2, 0.8, n)
-        colors = [(0, 0, 0, 0)] + [base_cmap(pos) for pos in color_positions]
-        cmap = ListedColormap(colors)
-
-        ax.imshow(combined, cmap=cmap, origin='lower', alpha=0.9, vmin=0, vmax=n)
-        ax.set_title("Regular sub-grids overlayed on original grid")
-
-    if plot_paths and best_path_debug:
-        xs = [p[1] for p in best_path_debug]
-        ys = [p[0] for p in best_path_debug]
-        ax.plot(xs, ys, color='black', linewidth=1.5, marker='o', markersize=3, label='path')
-
-        if start_cell is not None:
-            ax.scatter([start_cell[1]], [start_cell[0]], color='green', s=40, label='start')
-        if end_cell is not None:
-            ax.scatter([end_cell[1]], [end_cell[0]], color='red', s=40, label='end')
-
-        ax.legend(loc='upper right', fontsize='small')
-
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    ax.set_aspect('equal')
-    plt.tight_layout()
-    plt.show()
-
-
-
-
-def _debug_plot_subgrid_individually(fly_grid: np.ndarray, culling_merged_grids: list, plot_paths: bool = True):
-
-    # if plot_paths is True, plot a fixed lawnmower path for each sub-grid for debugging (some sub-grids may not have valid paths with this fixed approach)
-
-    # fixed lawnmower parameters
-    start_corner = 'nw'
-    direction = 'vertical'
-
-    print (f"Decomposition resulted in {len(culling_merged_grids)} regular sub-polygons")
-    # Plot all the regular sub-polygons with at most 5 subplots per row (multiple rows allowed)
-    n = len(culling_merged_grids)
-    if n > 0:
-        max_cols = 5
-        ncols = min(max_cols, n)
-        nrows = math.ceil(n / ncols)
-        fig, axs = plt.subplots(nrows, ncols, figsize=(5 * ncols, 5 * nrows))
-        axs = np.array(axs).reshape(-1)  # flatten to 1D for easy indexing
-
-        for i, sub_grid in enumerate(culling_merged_grids):
-            # Plot original grid as light blue background
-            axs[i].imshow(fly_grid, cmap='Blues', origin='lower', alpha=1, vmin=0, vmax=1)
-            # Overlay the sub-grid in orange/red
-            axs[i].imshow(sub_grid, cmap='Oranges', origin='lower', alpha=0.8, vmin=0, vmax=1)
-            axs[i].set_title(f"Regular sub-grid {i+1} (overlay on original)")
-
-            if plot_paths == True:
-                # Attempt to compute and plot a lawnmower path for this sub-grid for debugging.
-                try:
-                    path, path_len, start_cell, end_cell, turn_count = lawnmower(sub_grid, start_corner=start_corner, direction=direction)
-                    if path_len > 0:
-                        xs = [p[1] for p in path]  # x coordinates for plotting
-                        ys = [p[0] for p in path]  # y coordinates for plotting
-                        axs[i].plot(xs, ys, color='cyan', linewidth=1.5, marker='o', markersize=3, label='lawnmower path')
-                        # mark start and end
-                        axs[i].scatter([start_cell[1]], [start_cell[0]], color='green', s=40, label='start')
-                        axs[i].scatter([end_cell[1]], [end_cell[0]], color='red', s=40, label='end')
-                        axs[i].legend(loc='upper right', fontsize='small')
-                except Exception as e:
-                    # If no valid path or other error, just skip plotting path for this sub-grid
-                    print(f"Could not compute lawnmower path for sub-grid {i+1}: {e}")
-
-        # Hide any unused subplot axes
-        for j in range(n, nrows * ncols):
-            axs[j].axis('off')
-
-        plt.tight_layout()
-        plt.show()
 
 
 

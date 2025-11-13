@@ -244,7 +244,7 @@ def path_plan_swarm(all_sub_grids, uav_count):
 
             partition_count_for_uav = math.ceil(len(sub_grids_left) / uavs_left)
 
-            ########## STEP 1: Find best adjacent combinations of partitions for each UAV (best = smallest combined area) ##########
+            ########## STEP 1: Find best adjacent combinations of partitions (best = smallest combined area) ##########
             # Note: the combination also has to be "valid". 
             # (here, "invalid" would meaning that if its removal from sub_grids_left would result in partitions that cannot form adjacent combinations for remaining UAVs)
 

@@ -202,29 +202,8 @@ def find_best_sweep_line_area_balance(non_monotone_sweep_lines: List[LineString]
     return selected_sweep_line
 
 
-def main(args=None) -> None:
 
-    # Note: polygons can for example for created in Mission Planner and exported as .poly files
-    polygon_coords = []
-    # TODO horizontal_nonmono_only
-    # TODO irregular_poly
-    # TODO totally_mono.py
-    # TODO paper_recreate.poly
-    with open('alternative_method_poly_decomp/irregular_poly.poly','r') as f: 
-        reader = csv.reader(f,delimiter=' ')
-        for row in reader:
-            if(row[0] == '#saved'): continue # skip header
-            polygon_coords.append((float(row[1]), float(row[0]))) # (lat, lon)(aka y,x) to (lon, lat)(aka x,y)
-
-    polygon = Polygon(polygon_coords)
-    if not polygon.is_valid:
-        raise ValueError("Polygon is not valid")
-
-    # This decomp method does not allow for holes (i.e. no "no fly zones" inside the polygon)
-
-    fly_grid, _ , _ , _ , _ , _  = create_grid_from_polygon_and_noflyzones(polygon, [], DRONE_START, CAMERA_COVERAGE_LEN)
-    # (fly_grid is a 2D numpy array where 1 = flyable, 0 = no-fly zone - (y,x) indexing)
-
+def extract_regular_subgrids(fly_grid: np.ndarray, best_sweep_line_method: str) -> List[np.ndarray]:
     regular_grids_result = []
 
     banned_sweep_lines = [] # to avoid selecting the same sweep line multiple times TODO
@@ -266,9 +245,6 @@ def main(args=None) -> None:
             # Split grid along selected sweep line
             sub_grids = split_grid_along_sweep_line(grid, selected_sweep_line)
 
-            if len(regular_grids_result) == 44:
-                _plot_grid(grid, "Original grid to split")
-
             #print(f"Split grid into {len(sub_grids)} sub-grids along sweep line")
 
             # add sub-grids to queue for further processing
@@ -279,6 +255,34 @@ def main(args=None) -> None:
             # store the regular grid
             regular_grids_result.append(grid)
 
+
+    return regular_grids_result
+
+
+def main(args=None) -> None:
+
+    # Note: polygons can for example for created in Mission Planner and exported as .poly files
+    polygon_coords = []
+    # TODO horizontal_nonmono_only
+    # TODO irregular_poly
+    # TODO totally_mono.py
+    # TODO paper_recreate.poly
+    with open('alternative_method_poly_decomp/irregular_poly.poly','r') as f: 
+        reader = csv.reader(f,delimiter=' ')
+        for row in reader:
+            if(row[0] == '#saved'): continue # skip header
+            polygon_coords.append((float(row[1]), float(row[0]))) # (lat, lon)(aka y,x) to (lon, lat)(aka x,y)
+
+    polygon = Polygon(polygon_coords)
+    if not polygon.is_valid:
+        raise ValueError("Polygon is not valid")
+
+    # This decomp method does not allow for holes (i.e. no "no fly zones" inside the polygon)
+
+    fly_grid, _ , _ , _ , _ , _  = create_grid_from_polygon_and_noflyzones(polygon, [], DRONE_START, CAMERA_COVERAGE_LEN)
+    # (fly_grid is a 2D numpy array where 1 = flyable, 0 = no-fly zone - (y,x) indexing)
+
+    regular_grids_result = extract_regular_subgrids(fly_grid, BEST_SWEEP_LINE_METHOD)
 
     # After processing all grids, perform culling/merging step 
     culling_merged_grids = culling_merging(regular_grids_result)

@@ -404,6 +404,49 @@ def plot_path_per_uav(fly_grid: np.ndarray, culling_merged_grids: list, path_per
     plt.show()
 
 
+# (used for the explanation in the report)
+def plot_sweepline_example(fly_grid: np.ndarray, culling_merged_grids: list):
+    n = len(culling_merged_grids)
+    print(f"Decomposition resulted in {n} regular sub-polygons")
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+
+    # Build a combined label grid so each cell knows its sub-grid id
+    combined = np.zeros_like(fly_grid, dtype=int)
+    for idx, sub_grid in enumerate(culling_merged_grids, start=1):
+        combined = np.where(sub_grid == 1, idx, combined)
+
+    # Lightly fill areas covered by any sub-grid
+    if np.any(combined > 0):
+        mask = (combined > 0).astype(int)
+        fill_color = (0.376, 0.376, 0.376, 1.0)
+        cmap = ListedColormap([(0.941, 0.894, 0.569, 0.05), fill_color])
+        ax.imshow(mask, cmap=cmap, origin='lower', vmin=0, vmax=1)
+
+    h, w = fly_grid.shape
+    ax.set_xlim(-0.5, w - 0.5)
+    ax.set_ylim(-0.5, h - 0.5)
+    # plot some example sweep lines:
+    sweepline = LineString([(-0.5, 3), (w - 0.5, 3)]) #horizontal
+    x_sweepline, y_sweepline = sweepline.xy
+    ax.plot(x_sweepline, y_sweepline, color='mediumblue', linewidth=2, label='example monotone sweep lines')
+    sweepline = LineString([(5, -0.5), (5, h - 0.5)]) #vertical
+    x_sweepline, y_sweepline = sweepline.xy
+    ax.plot(x_sweepline, y_sweepline, color='mediumblue', linewidth=2)
+    sweepline = LineString([(12, -0.5), (12, h - 0.5)]) #vertical
+    x_sweepline, y_sweepline = sweepline.xy
+    ax.plot(x_sweepline, y_sweepline, color='tomato', linewidth=2, label='example non-monotone sweep lines')
+    sweepline = LineString([(-0.5, 25), (w - 0.5, 25)]) #horizontal
+    x_sweepline, y_sweepline = sweepline.xy
+    ax.plot(x_sweepline, y_sweepline, color='tomato', linewidth=2)
+
+    ax.legend(loc='upper right')#, fontsize='small')
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_aspect('equal')
+    plt.tight_layout()
+    plt.show()
+
 def _debug_plot_subgrid(fly_grid: np.ndarray, culling_merged_grids: list, plot_paths: bool = True, best_path_debug=None, start_cell=None, end_cell=None):
 
     n = len(culling_merged_grids)

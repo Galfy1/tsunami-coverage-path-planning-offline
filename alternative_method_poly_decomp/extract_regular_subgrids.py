@@ -119,7 +119,7 @@ def extract_regular_subgrids(fly_grid: np.ndarray, best_sweep_line_method: str =
             print("Polygon is irregular (non-monotone in both directions)")
             # We need to split!
 
-            # Find best candidate sweep line to split on (see BEST_SWEEP_LINE_METHOD definition above for details):
+            # Find best candidate sweep line to split on (see BEST_SWEEP_LINE_METHOD definition in main.py for details):
             if best_sweep_line_method == 'gap_severity':
                 selected_sweep_line = find_best_sweep_line_gap_severity(non_monotone_sweep_lines, banned_sweep_lines)
             elif best_sweep_line_method == 'area_balance':

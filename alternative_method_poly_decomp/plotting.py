@@ -64,34 +64,34 @@ def plot_path_per_uav(fly_grid: np.ndarray, culling_merged_grids: list, path_per
         lc = LineCollection(segments, colors='black', linewidths=2.5)
         ax.add_collection(lc)
 
-    ax.set_title("Regular sub-grids (single fill) with divider lines")
+    # ax.set_title("Regular sub-grids (single fill) with divider lines")
 
     start_points = []
     end_points = []
 
-    # Plot each UAV path and record their start/end cells
-    for uav_idx, entry in enumerate(path_per_uav):
-        if not entry:
-            continue
-        path, start_cell, end_cell = entry
-        if path:
-            xs = [p[1] for p in path]
-            ys = [p[0] for p in path]
-            ax.plot(xs, ys, linewidth=1.5, marker='o', markersize=3, label=f'UAV {uav_idx+1} path')
-        if start_cell is not None:
-            start_points.append(start_cell)
-        if end_cell is not None:
-            end_points.append(end_cell)
+    # # Plot each UAV path and record their start/end cells
+    # for uav_idx, entry in enumerate(path_per_uav):
+    #     if not entry:
+    #         continue
+    #     path, start_cell, end_cell = entry
+    #     if path:
+    #         xs = [p[1] for p in path]
+    #         ys = [p[0] for p in path]
+    #         ax.plot(xs, ys, linewidth=1.5, marker='o', markersize=3, label=f'UAV {uav_idx+1} path')
+    #     if start_cell is not None:
+    #         start_points.append(start_cell)
+    #     if end_cell is not None:
+    #         end_points.append(end_cell)
 
-    # Show start/end points on top of the paths
-    if start_points:
-        sx = [p[1] for p in start_points]
-        sy = [p[0] for p in start_points]
-        ax.scatter(sx, sy, color='green', s=30, label='Start (green)', zorder=5)
-    if end_points:
-        ex = [p[1] for p in end_points]
-        ey = [p[0] for p in end_points]
-        ax.scatter(ex, ey, color='red', s=30, label='End (red)', zorder=5)
+    # # Show start/end points on top of the paths
+    # if start_points:
+    #     sx = [p[1] for p in start_points]
+    #     sy = [p[0] for p in start_points]
+    #     ax.scatter(sx, sy, color='green', s=30, label='Start (green)', zorder=5)
+    # if end_points:
+    #     ex = [p[1] for p in end_points]
+    #     ey = [p[0] for p in end_points]
+    #     ax.scatter(ex, ey, color='red', s=30, label='End (red)', zorder=5)
 
     ax.legend(loc='upper right', fontsize='small')
     ax.set_xlabel("x")

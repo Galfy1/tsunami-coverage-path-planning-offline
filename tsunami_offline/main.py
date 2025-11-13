@@ -128,7 +128,7 @@ def main(args=None) -> None:
     # no_fly_zone_polygon = Polygon(no_fly_zone)
     # no_fly_zones = [no_fly_zone_polygon] # we can extend this to multiple no-fly zones if needed
 
-    # make sure polygon is convex
+    # make sure polygon is convex (its a requirement according to the Tsunami paper)
     if(polygon.equals(polygon.convex_hull) == False):
         raise ValueError("Polygon must be convex")
     for no_fly_zone_polygon in no_fly_zones:

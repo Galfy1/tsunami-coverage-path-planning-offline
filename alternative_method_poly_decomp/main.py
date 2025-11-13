@@ -22,6 +22,8 @@ from alternative_method_poly_decomp.culling_merging import culling_merging
 from alternative_method_poly_decomp.plotting import plot_path_per_uav
 from alternative_method_poly_decomp.extract_regular_subgrids import extract_regular_subgrids
 
+base_folder = "alternative_method_poly_decomp"
+
 
 #DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
 DRONE_START = (56.1672192716924, 10.152786411345) # for "paper_recreate.poly"
@@ -119,7 +121,7 @@ def main(args=None) -> None:
     # TODO irregular_poly
     # TODO totally_mono.py
     # TODO paper_recreate.poly
-    with open('alternative_method_poly_decomp/paper_recreate.poly','r') as f: 
+    with open(base_folder + '/paper_recreate.poly','r') as f: 
         reader = csv.reader(f,delimiter=' ')
         for row in reader:
             if(row[0] == '#saved'): continue # skip header
@@ -128,10 +130,21 @@ def main(args=None) -> None:
     polygon = Polygon(polygon_coords)
     if not polygon.is_valid:
         raise ValueError("Polygon is not valid")
+    
+    no_fly_zones = []
+    for filename in os.listdir(base_folder + "/no_fly_zones"):
+        if filename.endswith('.poly'):
+            with open(os.path.join(base_folder + "/no_fly_zones", filename), 'r') as f:
+                reader = csv.reader(f,delimiter=' ')
+                current_no_fly_zone = []
+                for row in reader:
+                    if(row[0] == '#saved'): continue # skip header
+                    current_no_fly_zone.append((float(row[1]), float(row[0]))) # (lat, lon)(aka y,x) to (lon, lat)(aka x,y)
+                no_fly_zones.append(Polygon(current_no_fly_zone)) # convert no-fly zone coordinates to a Shapely polygon
 
     # This decomp method does not allow for holes (i.e. no "no fly zones" inside the polygon)
 
-    fly_grid, _ , _ , _ , _ , _  = create_grid_from_polygon_and_noflyzones(polygon, [], DRONE_START, CAMERA_COVERAGE_LEN)
+    fly_grid, _ , _ , _ , _ , _  = create_grid_from_polygon_and_noflyzones(polygon, no_fly_zones, DRONE_START, CAMERA_COVERAGE_LEN)
     # (fly_grid is a 2D numpy array where 1 = flyable, 0 = no-fly zone - (y,x) indexing)
 
     regular_grids_result = extract_regular_subgrids(fly_grid, BEST_SWEEP_LINE_METHOD, ALLOW_VALID_MONOTONE_IN_SECTION_SCAN)

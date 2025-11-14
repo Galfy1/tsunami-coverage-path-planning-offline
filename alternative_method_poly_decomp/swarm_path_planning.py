@@ -10,10 +10,10 @@ from alternative_method_poly_decomp.lawnmower import lawnmower
 from alternative_method_poly_decomp.shared_grid_tools import are_grids_adjacent, split_grid_along_sweep_line
 from alternative_method_poly_decomp.scan_for_monotonicity import scan_for_monotone_sections
 
-# (see paper for loss function definition)
-def compute_total_path_loss(candidate_per_partition):
+# (see paper for cost function definition)
+def compute_total_path_cost(candidate_per_partition):
 
-    first_term = sum(c['internal_loss'] for c in candidate_per_partition)
+    first_term = sum(c['internal_cost'] for c in candidate_per_partition)
 
     second_term = 0
     for i in range(0, len(candidate_per_partition)-1):
@@ -28,8 +28,8 @@ def compute_total_path_loss(candidate_per_partition):
     return total_cost 
 
 
-#(see paper for loss function definition)
-def compute_internal_path_losses(candidate_list, alpha = 0.5, len_tolerance = 10): # TODO find en okay default alpha og turn tol
+#(see paper for cost function definition)
+def compute_internal_path_costs(candidate_list, alpha = 0.5, len_tolerance = 10): # TODO find en okay default alpha og turn tol
 
     for candidate in candidate_list:
         turn_count = candidate['turn_count']
@@ -45,7 +45,7 @@ def compute_internal_path_losses(candidate_list, alpha = 0.5, len_tolerance = 10
         second_term = turn_count - (min(valid_turn_counts) if valid_turn_counts else 0)
         second_term = alpha * max(0, second_term)
 
-        candidate['internal_loss'] = first_term + second_term
+        candidate['internal_cost'] = first_term + second_term
 
     return candidate_list
 
@@ -53,7 +53,7 @@ def compute_internal_path_losses(candidate_list, alpha = 0.5, len_tolerance = 10
 def one_uav_multi_partitions_path_plan(sub_grids: List[np.ndarray]):
     # (note: "sub-grids" and "partitions" are used interchangeably here)
 
-    ######### STEP 1: For each partition, generate all candidate lawnmower paths (and compute internal losses for each candidate) #########
+    ######### STEP 1: For each partition, generate all candidate lawnmower paths (and compute internal costs for each candidate) #########
 
     start_corners = ['nw', 'ne', 'sw', 'se']
     directions = ['horizontal', 'vertical']
@@ -75,16 +75,16 @@ def one_uav_multi_partitions_path_plan(sub_grids: List[np.ndarray]):
                         'start_cell': start_cell,
                         'end_cell': end_cell,
                         'turn_count': turn_count,
-                        'internal_loss': None
+                        'internal_cost': None
                     })
-        # Compute internal losses for this partition’s candidates
-        candidate_list = compute_internal_path_losses(candidate_list)
+        # Compute internal costs for this partition’s candidates
+        candidate_list = compute_internal_path_costs(candidate_list)
         all_candidates_per_partition.append(candidate_list)
 
 
     ######### STEP 2: Brute-force evaluation to find best combination (and order) of candidates across all partitions #########
 
-    best_loss = float('inf')
+    best_cost = float('inf')
     best_combination = None
 
 
@@ -94,9 +94,9 @@ def one_uav_multi_partitions_path_plan(sub_grids: List[np.ndarray]):
 
         # Try every combination (one candidate per partition)
         for combo in itertools.product(*ordered_partitions): # itertools.product: produces all possible combinations of input iterables (see https://www.geeksforgeeks.org/python/python-itertools-product/)
-            total_loss = compute_total_path_loss(combo)
-            if total_loss < best_loss:
-                best_loss = total_loss
+            total_cost = compute_total_path_cost(combo)
+            if total_cost < best_cost:
+                best_cost = total_cost
                 best_combination = combo
 
     ######### STEP 3: Output final paths from best combination (in the best order) #########
@@ -109,8 +109,8 @@ def one_uav_multi_partitions_path_plan(sub_grids: List[np.ndarray]):
     end_cell = best_combination[-1]['end_cell']
 
     print("final path example:", best_path[0] if best_path else "No paths")
-    print(f"Best total cost: {best_loss:.2f}")
-    return best_path, start_cell, end_cell, best_loss
+    print(f"Best total cost: {best_cost:.2f}")
+    return best_path, start_cell, end_cell, best_cost
 
 def one_uav_single_partition_path_plan(grid: np.ndarray):
     # # Simple lawnmower path for single partition
@@ -131,17 +131,16 @@ def one_uav_single_partition_path_plan(grid: np.ndarray):
                     'start_cell': start_cell,
                     'end_cell': end_cell,
                     'turn_count': turn_count,
-                    'internal_loss': None
+                    'internal_cost': None
                 })
 
-    # Compute internal losses for this partition’s candidates
-    candidate_list = compute_internal_path_losses(candidate_list)
-
+    # Compute internal costs for this partition’s candidates
+    candidate_list = compute_internal_path_costs(candidate_list)
     # find best candidate
-    best_candidate = min(candidate_list, key=lambda c: c['internal_loss'])
+    best_candidate = min(candidate_list, key=lambda c: c['internal_cost'])
     
     # return best path and associated info
-    return best_candidate['path'], best_candidate['start_cell'], best_candidate['end_cell'], best_candidate['internal_loss']
+    return best_candidate['path'], best_candidate['start_cell'], best_candidate['end_cell'], best_candidate['internal_cost']
 
 def _grid_area(grid):
     # compute area of grid (number of flyable cells)
@@ -246,7 +245,7 @@ def path_plan_swarm(all_sub_grids, uav_count):
 
             ########## STEP 1: Find best adjacent combinations of partitions (best = smallest combined area) ##########
             # Note: the combination also has to be "valid". 
-            # (here, "invalid" would meaning that if its removal from sub_grids_left would result in partitions that cannot form adjacent combinations for remaining UAVs)
+            # (here, "invalid" would mean that if its removal from sub_grids_left would result in partitions that cannot form adjacent combinations for remaining UAVs)
 
             all_combos_and_areas = find_all_adjacent_partitions(sub_grids_left, partition_count_for_uav)
 

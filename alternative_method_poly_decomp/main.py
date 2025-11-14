@@ -42,7 +42,7 @@ BEST_SWEEP_LINE_METHOD = 'area_balance' # 'gap_severity' or 'area_balance'.
                                         #                   (i.e. the actual partion area does not change. But, the coverage area for each UAV does - which is what we actually care about)
                                         #          Also:
                                         #               * If a similar area balance exists between a horizontal and a vertical sweep line, this method will simply select the first (if their balances are equal) 
-                                        #                 instead of choosing the one that would result in better future paths (e.g., lower loss).
+                                        #                 instead of choosing the one that would result in better future paths (e.g., lower cost).
                                         #          Solving these issues is non-trivial, as it would require information about the results of future processing steps.
                                         
                                         # TODO i rapporten vis et plot med gap severity.. og hvis hvorfor det ikke er så godt for vores system

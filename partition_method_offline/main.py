@@ -17,12 +17,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # Our imports
 from shared_tools.custom_cell_tools import dx_4way, dy_4way, dx_8way, dy_8way
 from shared_tools.create_grid_from_poly import create_grid_from_polygon_and_noflyzones
-from alternative_method_poly_decomp.swarm_path_planning import path_plan_swarm
-from alternative_method_poly_decomp.culling_merging import culling_merging
-from alternative_method_poly_decomp.plotting import plot_path_per_uav
-from alternative_method_poly_decomp.extract_regular_subgrids import extract_regular_subgrids
+from partition_method_offline.swarm_path_planning import path_plan_swarm
+from partition_method_offline.culling_merging import culling_merging
+from partition_method_offline.plotting import plot_path_per_uav
+from partition_method_offline.extract_regular_subgrids import extract_regular_subgrids
 
-base_folder = "alternative_method_poly_decomp"
+base_folder = "partition_method_offline"
 
 
 #DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)

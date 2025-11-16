@@ -1,6 +1,6 @@
 import math
 import numpy as np
-from alternative_method_poly_decomp.scan_for_monotonicity import scan_for_non_monotone_sections
+from partition_method_offline.scan_for_monotonicity import scan_for_non_monotone_sections
 from shared_tools.custom_cell_tools import dx_4way, dy_4way, dx_8way, dy_8way, diagonal_indices_8way
 
 

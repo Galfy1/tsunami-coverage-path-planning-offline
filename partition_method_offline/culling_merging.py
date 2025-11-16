@@ -1,7 +1,7 @@
 import numpy as np
 from collections import deque as queue
-from alternative_method_poly_decomp.scan_for_monotonicity import scan_for_non_monotone_sections
-from alternative_method_poly_decomp.shared_grid_tools import are_grids_adjacent
+from partition_method_offline.scan_for_monotonicity import scan_for_non_monotone_sections
+from partition_method_offline.shared_grid_tools import are_grids_adjacent
 
 
 

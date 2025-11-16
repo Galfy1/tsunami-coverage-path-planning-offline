@@ -3,8 +3,8 @@ from typing import List
 import numpy as np
 from shapely.geometry import LineString
 from collections import deque as queue
-from alternative_method_poly_decomp.scan_for_monotonicity import scan_for_non_monotone_sections
-from alternative_method_poly_decomp.shared_grid_tools import split_grid_along_sweep_line
+from partition_method_offline.scan_for_monotonicity import scan_for_non_monotone_sections
+from partition_method_offline.shared_grid_tools import split_grid_along_sweep_line
 
 
 

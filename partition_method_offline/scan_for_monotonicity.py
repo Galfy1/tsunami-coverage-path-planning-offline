@@ -1,6 +1,6 @@
 from shapely.geometry import Polygon, Point, LineString
 import numpy as np
-from alternative_method_poly_decomp.shared_grid_tools import split_grid_along_sweep_line
+from partition_method_offline.shared_grid_tools import split_grid_along_sweep_line
 
 
 # NOTE: if allow_valid_monotone is set to True, then sweep lines that result in two regular partitions will 

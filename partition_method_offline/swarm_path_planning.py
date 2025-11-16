@@ -6,9 +6,9 @@ import itertools
 import math
 
 
-from alternative_method_poly_decomp.lawnmower import lawnmower
-from alternative_method_poly_decomp.shared_grid_tools import are_grids_adjacent, split_grid_along_sweep_line
-from alternative_method_poly_decomp.scan_for_monotonicity import scan_for_monotone_sections
+from partition_method_offline.lawnmower import lawnmower
+from partition_method_offline.shared_grid_tools import are_grids_adjacent, split_grid_along_sweep_line
+from partition_method_offline.scan_for_monotonicity import scan_for_monotone_sections
 
 # (see paper for cost function definition)
 def compute_total_path_cost(candidate_per_partition):

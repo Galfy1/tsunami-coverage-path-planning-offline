@@ -26,7 +26,7 @@ CAMERA_COVERAGE_LEN = 10  # meters. coverage of the drone camera in the narrowes
 ALLOW_DIAGONAL_IN_BFT = False 
 
 # Offline Plotting Settings (this is just for single drone traversal plotting):
-PLOTTING_METHOD_SELECTION = "centroid90_hybrid"  # Options: "BFT",
+PLOTTING_METHOD_SELECTION = "centroid"  # Options: "BFT",
                                            #          "centroid", "centroid90","centroid180", (uses unidirectional by default)
                                            #          "centroid_hybrid", "centroid90_hybrid", (uses bidirectional by default + biases the drone towards its current moving direction)
                                            #                                                  (because bidirectional is used, centroid180_hybrid is not relevant here - as it would be the same as centroid_hybrid)
@@ -155,7 +155,7 @@ def main(args=None) -> None:
 
     # Prepare data to save
     centroid = polygon.centroid 
-    centroid_line_angle = math.atan2(centroid.y - home_cell[0], centroid.x - home_cell[1])  # angle in radians
+    centroid_line_angle = math.atan2(centroid.y - DRONE_START[0], centroid.x - DRONE_START[1])  # angle in radians
 
     #centroid_coords = (centroid.y, centroid.x)  # (lat, lon) (we dont want drone to be dependent on shapely Point objects)
     data_to_save = {

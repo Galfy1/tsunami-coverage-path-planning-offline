@@ -169,7 +169,7 @@ def main(args=None) -> None:
         'centroid_line_angle' : centroid_line_angle,
     }
     # Save traversal order to a file using pickle
-    with open('offline_phase_data.pkl', 'wb') as fp:
+    with open(base_folder + '/offline_phase_data.pkl', 'wb') as fp:
         pickle.dump(data_to_save, fp)
 
     # # heatmap plot

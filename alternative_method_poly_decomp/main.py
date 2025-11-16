@@ -28,7 +28,7 @@ base_folder = "alternative_method_poly_decomp"
 #DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
 DRONE_START = (56.1672192716924, 10.152786411345) # for "paper_recreate.poly"
 CAMERA_COVERAGE_LEN = 1 # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
-UAV_COUNT = 2
+UAV_COUNT = 3
 
 BEST_SWEEP_LINE_METHOD = 'area_balance' # 'gap_severity' or 'area_balance'.
                                         # Gap-severity is fine when a single drone covers all polygon partitions (as it does in the paper) (it yields good results).
@@ -160,7 +160,7 @@ def main(args=None) -> None:
 
     # Pickle path_per_uav:
     paths_only = [x[0] for x in path_per_uav] # (we only need the paths for later use)
-    with open('poly_decomp_paths.pkl', 'wb') as f:
+    with open(base_folder + '/poly_decomp_paths.pkl', 'wb') as f:
         pickle.dump(paths_only, f)
 
     #print(f"path2: {path_per_uav[1][0]}")

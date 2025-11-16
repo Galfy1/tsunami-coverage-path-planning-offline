@@ -65,10 +65,18 @@ PLOTTING_HYBRID_CENTROID_WEIGHT = 0.6 # (Only relevant if a hybrid method) how m
 
 
 
+def convert_grid_to_gps(fly_nofly_grid, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y):
+    gps_grid = np.empty(fly_nofly_grid.shape, dtype=object)  # create empty grid of same shape (dtype object to hold python tuples)
+    for y in range(fly_nofly_grid.shape[0]):
+        for x in range(fly_nofly_grid.shape[1]):
+            lat = y_axis_coords[y] + (grid_res_y / 2)  # center of cell
+            lon = x_axis_coords[x] + (grid_res_x / 2)  # center of cell
+            gps_grid[y, x] = (lat, lon)
+    return gps_grid
+
 
 
 def convert_cells_to_gps(cells, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y):
-
     # Add half grid res to get to center of cell, instead of just the lower left corner
     #grid_res = x_axis_coords[1] - x_axis_coords[0]  # assuming uniform spacing. will be positive if x_axis_coords is increasing, negative if decreasing
     y_axis_coords_cent = y_axis_coords + (grid_res_y / 2)
@@ -142,16 +150,23 @@ def main(args=None) -> None:
     bf_traversal_cells = breadth_first_traversal(fly_nofly_grid, home_cell, allow_diagonal=ALLOW_DIAGONAL_IN_BFT)
     bf_traversal_gps = convert_cells_to_gps(bf_traversal_cells, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y)
 
+    # Compute fly_nofly_grid in gps for saving
+    fly_nofly_grid_gps = convert_grid_to_gps(fly_nofly_grid, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y)
+
     # Prepare data to save
     centroid = polygon.centroid 
-    centroid_coords = (centroid.y, centroid.x)  # (lat, lon) (we dont want drone to be dependent on shapely Point objects)
+    centroid_line_angle = math.atan2(centroid.y - home_cell[0], centroid.x - home_cell[1])  # angle in radians
+
+    #centroid_coords = (centroid.y, centroid.x)  # (lat, lon) (we dont want drone to be dependent on shapely Point objects)
     data_to_save = {
         'home_cell': home_cell,
         'home_gps': DRONE_START,
         'bf_traversal_cells': bf_traversal_cells,
-        'bf_traversal_gps': bf_traversal_gps,
+        #'bf_traversal_gps': bf_traversal_gps,
         'fly_nofly_grid': fly_nofly_grid,
-        'centroid': centroid_coords,
+        'fly_nofly_grid_gps': fly_nofly_grid_gps,
+        #'centroid': centroid_coords,
+        'centroid_line_angle' : centroid_line_angle,
     }
     # Save traversal order to a file using pickle
     with open('offline_phase_data.pkl', 'wb') as fp:
@@ -162,7 +177,7 @@ def main(args=None) -> None:
     # for idx, (i, j) in enumerate(traversal_order_cells):
     #     heatmap[i, j] = idx + 1  # Start from 1 for better visibility
     # plt.imshow(heatmap, origin="lower", cmap="hot", interpolation='nearest')
-    # plt.show()
+    # plt.show() 
 
 
     ################################ PLOTTING ################################

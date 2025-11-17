@@ -180,7 +180,10 @@ def find_all_adjacent_partitions(grid, partition_count):
 
 
 
-def path_plan_swarm(all_sub_grids, uav_count):
+
+# one_part_odd_uav_trick_area_tol_pct: Only applies to the "single partition odd uav count trick" !
+#                                      e.g. 0.1 = 10% area tollerance for splitting single partition into multiple partitions
+def path_plan_swarm(all_sub_grids, uav_count, one_part_odd_uav_trick_area_tol_pct = 0.1):
     # (note: "sub-grids" and "partitions" are used interchangeably here)
 
     path_per_uav = []
@@ -188,6 +191,68 @@ def path_plan_swarm(all_sub_grids, uav_count):
     sub_grids_left = all_sub_grids.copy() 
     uavs_left = uav_count
 
+    # The following is a "trick" to improve performance when we have an odd number of UAVs and only a single partition:
+    if len(sub_grids_left) == 1 and (uav_count % 2): # single partition with odd number of UAVs
+        print("Special case: single partition with odd number of UAVs")
+        # If there is only a single partition, we can easily improve partition performance for an uneven number of UAVs by simply
+        # splitting the single partition into multiple smaller partitions of close to equal size.
+
+        single_partition = sub_grids_left[0] # (just an easier reference)
+
+        ########## STEP 1: Determine ideal area for each partition ##########
+        total_area = _grid_area(single_partition)
+        base_area = total_area // uav_count # integer division
+        remainder = total_area % uav_count  
+        area_for_each_partition = [base_area + 1 if i < remainder else base_area for i in range(uav_count)] # (distribute remainder over first few partitions)
+
+        ########## STEP 2: Split single partition into multiple partitions of close to ideal area ##########
+
+        # # we only consider monotone sweep lines (just to decrease search space) 
+        # # (many non-monotone sweep lines would produce more than 2 sub-partitions when splitting, which we dont want)
+        monotone_sweep_lines, _, _, _ = scan_for_monotone_sections(single_partition)
+        sub_grids_temp = []
+        for sweep_line, _ , _ in monotone_sweep_lines:
+            # split partition along sweep line
+            sub_partitions = split_grid_along_sweep_line(single_partition, sweep_line)
+            if len(sub_partitions) != 2:
+                continue # we only want to split into two partitions
+
+            area1 = _grid_area(sub_partitions[0])
+            area2 = _grid_area(sub_partitions[1])
+
+            # if one of these areas matches one in the area_for_each_partition list within tolerance, we can use that partition
+            if any(abs(area1 - a) <= one_part_odd_uav_trick_area_tol_pct * a for a in area_for_each_partition):
+                print("found matching area partition:", area1)
+                sub_grids_temp.append(sub_partitions[0])
+                single_partition = sub_partitions[1] # continue splitting the other partition
+                # remove matched area from area_for_each_partition
+                matched_area = next(a for a in area_for_each_partition if abs(area1 - a) <= one_part_odd_uav_trick_area_tol_pct * a)
+                area_for_each_partition.remove(matched_area) # (.remove only removes 1 occurrence)
+            elif any(abs(area2 - a) <= one_part_odd_uav_trick_area_tol_pct * a for a in area_for_each_partition): # (same for area2)
+                print("found matching area partition:", area2)
+                sub_grids_temp.append(sub_partitions[1])
+                single_partition = sub_partitions[0]
+                matched_area = next(a for a in area_for_each_partition if abs(area2 - a) <= one_part_odd_uav_trick_area_tol_pct * a)
+                area_for_each_partition.remove(matched_area) 
+
+            if len(sub_grids_temp) == uav_count - 1:
+                sub_grids_temp.append(single_partition) # add the remaining partition
+                break # found enough partitions
+
+        ########## STEP 3: If successful, plan paths for each UAV over the new partitions ##########
+        if len(sub_grids_temp) != uav_count:
+            print("Could not complete the 'single partition odd uav count trick' within tollerance. Falling back to normal method.")
+        else:
+            print("Successfully completed the 'single partition odd uav count trick'")
+            # plan paths for each UAV over the new partitions
+            for grid in sub_grids_temp:
+                path, start_cell, end_cell, _ = one_uav_single_partition_path_plan(grid)
+                path_per_uav.append((path, start_cell, end_cell))
+            return path_per_uav # all UAVs assigned
+
+
+    ########## MAIN LOOP: Assign partitions to UAVs ##########
+    # (i.e. the "normal" method from here on)
     while len(sub_grids_left) > 0:
 
         print("path_plan_swarm() processing...")

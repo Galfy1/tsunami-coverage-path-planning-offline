@@ -186,13 +186,10 @@ def find_all_adjacent_partitions(grid, partition_count):
 def path_plan_swarm(all_sub_grids, uav_count, one_part_odd_uav_trick_area_tol_pct = 0.1):
     # (note: "sub-grids" and "partitions" are used interchangeably here)
 
-    path_per_uav = []
-
-    sub_grids_left = all_sub_grids.copy() 
-    uavs_left = uav_count
+    path_per_uav = [] # Final Result (list of tuples: (path, start_cell, end_cell) per UAV)
 
     # The following is a "trick" to improve performance when we have an odd number of UAVs and only a single partition:
-    if len(sub_grids_left) == 1 and (uav_count % 2): # single partition with odd number of UAVs
+    if len(all_sub_grids) == 1 and (uav_count % 2): # single partition with odd number of UAVs
         print("Special case: single partition with odd number of UAVs")
         # If there is only a single partition, we can easily improve partition performance for an uneven number of UAVs by simply
         # splitting the single partition into multiple smaller partitions of close to equal size.
@@ -253,6 +250,9 @@ def path_plan_swarm(all_sub_grids, uav_count, one_part_odd_uav_trick_area_tol_pc
 
     ########## MAIN LOOP: Assign partitions to UAVs ##########
     # (i.e. the "normal" method from here on)
+
+    sub_grids_left = all_sub_grids.copy() 
+    uavs_left = uav_count
     while len(sub_grids_left) > 0:
 
         print("path_plan_swarm() processing...")

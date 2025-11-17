@@ -15,6 +15,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from tsunami_offline.breadth_first_traversal import breadth_first_traversal
 from tsunami_offline.single_drone_path_planning import single_drone_traversal_order_bft, single_drone_traversal_order_alt
 from shared_tools.create_grid_from_poly import create_grid_from_polygon_and_noflyzones
+from shared_tools.custom_cell_tools import convert_grid_to_gps
 
 base_folder = "tsunami_offline"
 
@@ -65,14 +66,6 @@ PLOTTING_HYBRID_CENTROID_WEIGHT = 0.6 # (Only relevant if a hybrid method) how m
 
 
 
-def convert_grid_to_gps(fly_nofly_grid, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y):
-    gps_grid = np.empty(fly_nofly_grid.shape, dtype=object)  # create empty grid of same shape (dtype object to hold python tuples)
-    for y in range(fly_nofly_grid.shape[0]):
-        for x in range(fly_nofly_grid.shape[1]):
-            lat = y_axis_coords[y] + (grid_res_y / 2)  # center of cell
-            lon = x_axis_coords[x] + (grid_res_x / 2)  # center of cell
-            gps_grid[y, x] = (lat, lon)
-    return gps_grid
 
 
 
@@ -169,7 +162,7 @@ def main(args=None) -> None:
         'centroid_line_angle' : centroid_line_angle,
     }
     # Save traversal order to a file using pickle
-    with open(base_folder + '/offline_phase_data.pkl', 'wb') as fp:
+    with open(base_folder + '/tsunami_offline_data.pkl', 'wb') as fp:
         pickle.dump(data_to_save, fp)
 
     # # heatmap plot

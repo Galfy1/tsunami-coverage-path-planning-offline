@@ -1,3 +1,5 @@
+import numpy as np
+
 # Direction vectors
 dx_4way = [ -1, 0, 1, 0]
 dy_4way = [ 0, 1, 0, -1]
@@ -27,3 +29,13 @@ def is_cell_valid(grid, vis, x, y):
 
     # Otherwise
     return True
+
+
+def convert_grid_to_gps(fly_nofly_grid, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y):
+    gps_grid = np.empty(fly_nofly_grid.shape, dtype=object)  # create empty grid of same shape (dtype object to hold python tuples)
+    for y in range(fly_nofly_grid.shape[0]):
+        for x in range(fly_nofly_grid.shape[1]):
+            lat = y_axis_coords[y] + (grid_res_y / 2)  # center of cell
+            lon = x_axis_coords[x] + (grid_res_x / 2)  # center of cell
+            gps_grid[y, x] = (lat, lon)
+    return gps_grid

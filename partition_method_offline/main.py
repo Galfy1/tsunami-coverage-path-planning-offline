@@ -15,7 +15,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Our imports
-from shared_tools.custom_cell_tools import dx_4way, dy_4way, dx_8way, dy_8way
+from shared_tools.custom_cell_tools import dx_4way, dy_4way, dx_8way, dy_8way, convert_grid_to_gps
 from shared_tools.create_grid_from_poly import create_grid_from_polygon_and_noflyzones
 from partition_method_offline.swarm_path_planning import path_plan_swarm
 from partition_method_offline.culling_merging import culling_merging
@@ -26,8 +26,11 @@ base_folder = "partition_method_offline"
 
 
 #DRONE_START = (37.4135766590003, -121.997506320477) # (lat, lon) aka (y,x)
-DRONE_START = (56.1672192716924, 10.152786411345) # for "paper_recreate.poly"
-CAMERA_COVERAGE_LEN = 1 # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
+#DRONE_START = (56.1672192716924, 10.152786411345) # for "paper_recreate.poly"
+DRONE_START = (37.4122067992952, -121.998909115791) # for "baylands_polygon_v3.poly"
+
+#CAMERA_COVERAGE_LEN = 1 # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
+CAMERA_COVERAGE_LEN = 10 # for baylands_polygon_v3.poly
 UAV_COUNT = 3
 
 BEST_SWEEP_LINE_METHOD = 'area_balance' # 'gap_severity' or 'area_balance'.
@@ -121,7 +124,8 @@ def main(args=None) -> None:
     # TODO irregular_poly
     # TODO totally_mono.py
     # TODO paper_recreate.poly
-    with open(base_folder + '/paper_recreate.poly','r') as f: 
+    # TODO baylands_polygon_v3.poly
+    with open(base_folder + '/baylands_polygon_v3.poly','r') as f: 
         reader = csv.reader(f,delimiter=' ')
         for row in reader:
             if(row[0] == '#saved'): continue # skip header
@@ -144,10 +148,10 @@ def main(args=None) -> None:
 
     # This decomp method does not allow for holes (i.e. no "no fly zones" inside the polygon)
 
-    fly_grid, _ , _ , _ , _ , _  = create_grid_from_polygon_and_noflyzones(polygon, no_fly_zones, DRONE_START, CAMERA_COVERAGE_LEN)
+    fly_nofly_grid, home_cell , x_axis_coords , y_axis_coords , grid_res_x , grid_res_y  = create_grid_from_polygon_and_noflyzones(polygon, no_fly_zones, DRONE_START, CAMERA_COVERAGE_LEN)
     # (fly_grid is a 2D numpy array where 1 = flyable, 0 = no-fly zone - (y,x) indexing)
 
-    regular_grids_result = extract_regular_subgrids(fly_grid, BEST_SWEEP_LINE_METHOD, ALLOW_VALID_MONOTONE_IN_SECTION_SCAN)
+    regular_grids_result = extract_regular_subgrids(fly_nofly_grid, BEST_SWEEP_LINE_METHOD, ALLOW_VALID_MONOTONE_IN_SECTION_SCAN)
 
     # After processing all grids, perform culling/merging step 
     culling_merged_grids = culling_merging(regular_grids_result)
@@ -158,16 +162,26 @@ def main(args=None) -> None:
     # Plan path(s) over the resulting sub-grids
     path_per_uav = path_plan_swarm(culling_merged_grids, uav_count=UAV_COUNT)
 
+    # Compute fly_nofly_grid in gps for saving
+    fly_nofly_grid_gps = convert_grid_to_gps(fly_nofly_grid, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y)
+
     # Pickle path_per_uav:
     paths_only = [x[0] for x in path_per_uav] # (we only need the paths for later use)
-    with open(base_folder + '/poly_decomp_paths.pkl', 'wb') as f:
-        pickle.dump(paths_only, f)
+    data_to_save = {
+        'home_cell': home_cell,
+        'home_gps': DRONE_START,
+        'fly_nofly_grid': fly_nofly_grid,
+        'fly_nofly_grid_gps': fly_nofly_grid_gps,
+        'uav_paths' : paths_only,
+    }
+    with open(base_folder + '/partition_offline_data.pkl', 'wb') as f:
+        pickle.dump(data_to_save, f)
 
     #print(f"path2: {path_per_uav[1][0]}")
 
     # Plot if enabled
     if ENABLE_PLOTTING:
-        plot_path_per_uav(fly_grid, culling_merged_grids, path_per_uav)
+        plot_path_per_uav(fly_nofly_grid, culling_merged_grids, path_per_uav)
 
     # DEBUG
     #best_path_debug , start_cell, end_cell, _ = path_plan_swarm(culling_merged_grids, uav_count=3)

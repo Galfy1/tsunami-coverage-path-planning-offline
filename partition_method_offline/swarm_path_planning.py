@@ -194,7 +194,7 @@ def path_plan_swarm(all_sub_grids, uav_count, one_part_odd_uav_trick_area_tol_pc
         # If there is only a single partition, we can easily improve partition performance for an uneven number of UAVs by simply
         # splitting the single partition into multiple smaller partitions of close to equal size.
 
-        single_partition = sub_grids_left[0] # (just an easier reference)
+        single_partition = all_sub_grids.copy()[0]
 
         ########## STEP 1: Determine ideal area for each partition ##########
         total_area = _grid_area(single_partition)

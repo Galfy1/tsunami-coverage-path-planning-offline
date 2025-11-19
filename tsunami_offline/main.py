@@ -27,12 +27,12 @@ CAMERA_COVERAGE_LEN = 10  # meters. coverage of the drone camera in the narrowes
 ALLOW_DIAGONAL_IN_BFT = False 
 
 # Offline Plotting Settings (this is just for single drone traversal plotting):
-PLOTTING_METHOD_SELECTION = "centroid"  # Options: "BFT",
-                                           #          "centroid", "centroid90","centroid180", (uses unidirectional by default)
-                                           #          "centroid_hybrid", "centroid90_hybrid", (uses bidirectional by default + biases the drone towards its current moving direction)
-                                           #                                                  (because bidirectional is used, centroid180_hybrid is not relevant here - as it would be the same as centroid_hybrid)
-                                           # All data relevant for all modes will be saved in the pickle file anyway - so this setting is just for plotting
-PLOTTING_ONLY_PLOT_POINTS = False # If true, only the waypoints are plotted. If false, the full path planning lines are also plotted
+PLOTTING_METHOD_SELECTION = "BFT"  # Options: "BFT",
+                                        #          "centroid", "centroid90","centroid180", (uses unidirectional by default)
+                                        #          "centroid_hybrid", "centroid90_hybrid", (uses bidirectional by default + biases the drone towards its current moving direction)
+                                        #                                                  (because bidirectional is used, centroid180_hybrid is not relevant here - as it would be the same as centroid_hybrid)
+                                        # All data relevant for all modes will be saved in the pickle file anyway - so this setting is just for plotting
+PLOTTING_ONLY_PLOT_POINTS = True # If true, only the waypoints are plotted. If false, the full path planning lines are also plotted
 PLOTTING_ALLOW_DIAGONAL_IN_PATH_PLANNING = True # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
 PLOTTING_HYBRID_CENTROID_WEIGHT = 0.6 # (Only relevant if a hybrid method) how much weight to put on centroid direction vs current direction (0 = only current direction, 1 = only centroid direction)
 
@@ -132,9 +132,9 @@ def main(args=None) -> None:
     # make sure polygon is convex (its a requirement according to the Tsunami paper)
     if(polygon.equals(polygon.convex_hull) == False):
         raise ValueError("Polygon must be convex")
-    for no_fly_zone_polygon in no_fly_zones:
-        if(no_fly_zone_polygon.equals(no_fly_zone_polygon.convex_hull) == False): # TODO, NOT SURE IF THIS IS REQURED
-            raise ValueError("No-fly zone polygon must be convex")
+    # for no_fly_zone_polygon in no_fly_zones:
+    #     if(no_fly_zone_polygon.equals(no_fly_zone_polygon.convex_hull) == False): # TODO, NOT SURE IF THIS IS REQURED
+    #         raise ValueError("No-fly zone polygon must be convex")
 
     fly_nofly_grid, home_cell, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y = create_grid_from_polygon_and_noflyzones(
                                                                                             polygon, no_fly_zones, DRONE_START, CAMERA_COVERAGE_LEN)
@@ -214,6 +214,9 @@ def main(args=None) -> None:
         else:
             color = 'black' # all black if not BFT plotting (the colors are a BFT specific thing) 
         folium.CircleMarker(location=[lat, lon], radius=5, color=color, fill=True, fill_opacity=0.7).add_to(m)
+
+    # Plot home position:
+    #folium.Marker(location=[DRONE_START[0], DRONE_START[1]], popup="Home", icon=folium.Icon(color='blue', icon="home")).add_to(m)
 
     if (not PLOTTING_ONLY_PLOT_POINTS):
         # Plot traversal order path

@@ -34,7 +34,7 @@ PLOTTING_METHOD_SELECTION = "BFT"  # Options: "BFT",
                                         # All data relevant for all modes will be saved in the pickle file anyway - so this setting is just for plotting
 PLOTTING_ONLY_PLOT_POINTS = True # If true, only the waypoints are plotted. If false, the full path planning lines are also plotted
 PLOTTING_ALLOW_DIAGONAL_IN_PATH_PLANNING = True # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
-PLOTTING_HYBRID_CENTROID_WEIGHT = 0.6 # (Only relevant if a hybrid method) how much weight to put on centroid direction vs current direction (0 = only current direction, 1 = only centroid direction)
+PLOTTING_HYBRID_CENTROID_WEIGHT = 0.6 # (Only relevant if a hybrid method) how much weight to put on centroid direction vs current direction (0 = only current direction, 1 = only sweepline direction)
 
 # TODO skriv i rapporten and centroid metoden ikke accounter for nofly zones
 

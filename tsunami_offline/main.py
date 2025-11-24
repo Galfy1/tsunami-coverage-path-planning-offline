@@ -36,9 +36,8 @@ PLOTTING_ONLY_PLOT_POINTS = True # If true, only the waypoints are plotted. If f
 PLOTTING_ALLOW_DIAGONAL_IN_PATH_PLANNING = True # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
 PLOTTING_HYBRID_CENTROID_WEIGHT = 0.6 # (Only relevant if a hybrid method) how much weight to put on centroid direction vs current direction (0 = only current direction, 1 = only sweepline direction)
 
-# TODO skriv i rapporten and centroid metoden ikke accounter for nofly zones
 
-# TODO følgene kan bruges til noter i rapporten. kan også bruges ti at sammenligne single og multi drone behavior.
+
 # SINGLE DRONE OBSERVATIONS:
     # ALTERNTIVES THAT SEEM TO WORK BEST 
         # "centroid180" (with the default directional setting of unidirectional): Will always "push" the drone back towards home (along the centoid line) (i.e. coveraging everything outwards from home)
@@ -50,21 +49,9 @@ PLOTTING_HYBRID_CENTROID_WEIGHT = 0.6 # (Only relevant if a hybrid method) how m
             # "centroid90" which makes paths parallel to the centroid line
         # "centroid" does the same as "centroid180" (asuming unidirectional) - BUT, at the start, the drone is forced to fly directly to the other side of the polygon before starting the real "coverage pattern"
 
-# TODO hybrider performer ikke så godt med single drone... men tror måske de performer bedre med multi droner. (men har ikke tested det endnu)
 
-
-# TODO skriv i rapporten hvad de forskellig modes er.. og at centroud (pure centroid) er unidirection. og hvordan hybrid er andereldes (er bi directional også)
 
 # NOTE: We have tried to keep all coords, cells, grids, etc. (y,x) aka (lat, lon) - besides shapely Point, those are (x,y)
-
-
-# TODO "Firkant problemet".. (se paint)
-    # potentiel løsning: lav en funktion til at detecte og centroid alignemnt skal slås til eller fra. 
-        # Det gør den ved at beregne polygonens "summet kantvinkel - kalder jeg det". 
-        # aka gå igennem alle edges i polygonen og kig på dens vinkel (relativt til x-aksen) og gang dem med længden (der er så den vægtet "kant vinklen"). Sum alle de vægtede kantvinkelr op
-                # hvis den summede kantvinkel er 45grader +-22,5grader, så aktiver centroid alignemnt. ellers slå det fra.
-
-
 
 
 
@@ -133,7 +120,7 @@ def main(args=None) -> None:
     if(polygon.equals(polygon.convex_hull) == False):
         raise ValueError("Polygon must be convex")
     # for no_fly_zone_polygon in no_fly_zones:
-    #     if(no_fly_zone_polygon.equals(no_fly_zone_polygon.convex_hull) == False): # TODO, NOT SURE IF THIS IS REQURED
+    #     if(no_fly_zone_polygon.equals(no_fly_zone_polygon.convex_hull) == False): 
     #         raise ValueError("No-fly zone polygon must be convex")
 
     fly_nofly_grid, home_cell, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y = create_grid_from_polygon_and_noflyzones(

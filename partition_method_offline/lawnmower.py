@@ -8,11 +8,6 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
     # implement lawnmower path generation for the given grid
 
 
-    # TODO Gør, så når man lawnmover, tjekker den gridded om det er mononome i en retning.
-	#hvis den er monoton i et retning, kan den ikke lave simple lawnmover (uden potentielt at have missed area... som ville kræve path planning (e.g. A*) for at "backpropegate" ud af stuck, hen til den tætteste missed cell. samtilidgt vil det også betyde revisisted cells.. hvilket er ineffektivt)
-    # hvis den ikke allower er retning, så return et None path (eventuelt med inf længde og turns, etc.)
-
-
     path = []
     end_cell = None
     turn_count = 0

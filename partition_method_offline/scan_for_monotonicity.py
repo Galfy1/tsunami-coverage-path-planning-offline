@@ -54,17 +54,8 @@ def scan_for_non_monotone_sections(grid: np.ndarray, allow_valid_monotone: bool 
                 # Note: This might result in some duplicate entries in non_monotone_sweep_lines.
                 #       However, its faster to allow duplicates here and handle them later if needed, than to check for duplicates here - so we dont.
 
-                # TODO nu ved jeg hvorfor den gør alt så langsomt... det fordi scan_for_non_monotone_sections også bliver brugt i culling_merging() og lawnmower()
-                                # det kan faktisk løses! for de behøver ikke de her ting vi tilføjer... aka, eventuelt lav et input flag til at "allow_asd" der slår det til of fra... for vi behøver det faktisk kun i poly_decomp_and_path_plan.py
-
-                # TODO  den version hvor jeg ikke early breaker virkede ... den her virker ikke for whatever reason..
-
-                # while(True): # this is just to allow easy early breaking for faster processing
-            
                 above_line = LineString([(p1_x, y + 1), (p2_x, y + 1)])
                 sub_grids = split_grid_along_sweep_line(grid, above_line)
-                if above_line == LineString([(0,45), (83,45)]): # TODO fjern
-                    print("asdasd")
                 if len(sub_grids) == 2:
                     while(True): # this is just to allow easy early breaking for faster processing
                         # check if both resulting sub-grids are "regular" (i.e. monotone in either x or y)
@@ -90,8 +81,6 @@ def scan_for_non_monotone_sections(grid: np.ndarray, allow_valid_monotone: bool 
                             #print(f"MONOTONE: {below_line}")
                         non_monotone_sweep_lines.append((below_line, intersection_points, float('inf')))
                         break
-
-                # TODO non_monotone_sweep_lines og scan_for_non_monotone_sections skal have nye navne hvis det her virker
 
 
     # go through all vertical sweep lines:
@@ -164,8 +153,6 @@ def scan_for_non_monotone_sections(grid: np.ndarray, allow_valid_monotone: bool 
                             #print(f"MONOTONE: {below_line}")
                         non_monotone_sweep_lines.append((below_line, intersection_points, float('inf')))
                         break 
-
-                # TODO non_monotone_sweep_lines og scan_for_non_monotone_sections skal have nye navne hvis det her virker
 
     is_irregular = non_monotone_in_x and non_monotone_in_y
  

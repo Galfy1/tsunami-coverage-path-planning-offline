@@ -34,51 +34,6 @@ def find_best_sweep_line_area_balance(non_monotone_sweep_lines: List[LineString]
         sub_grids = split_grid_along_sweep_line(grid, sweep_line)
         if len(sub_grids) < 2:  # TODO 
             continue 
-            # TODO !!!!!!!!!!!!!!!!!!!!!!!!!!!! 
-            #raise ValueError("Sweep line did not split the grid into multiple sub-grids") # this should not happen
-
-        # TODO fix problemer i den nuværende polygon (måske noget at gøre med 1px halløj der)
-
-        # TODO: hvis det skulle være rigtig godt, så skulle man tage uav_count med i betragtning her....
-            # så den ikke bare splitter efter efter balance mellem subgrids... men den samler subgrids så det passer til hvordan fordelingen serner vil være i path planning
-                        # måske skal den her bruge? partition_count_for_uav = math.ceil(len(sub_grids_left) / uavs_left)
-                        # men det er meget svært... fordi partition_count_for_uav ændre sig over tid, som path planningen går along
-                # POTENTIEL lØSNING: hvis subgrid count er højere end uav count, samler man bare de to mindste subgrids (area wise) indtil subgrid count matcher uav count
-                                    # og så er det de partions der bruges i area balance målingen her
-                                    # men husk.. det skal ikke bare være de 2 mindste.. det skal være de 2 mindste der er connected (samme tjek vi laver i swarm_path_planning halløjet)
-        # # TODO GIVER ALT DET HER OVERHOEVEDET MENING!??!?!?! FOR CULLING MERGE KAN JO BARE SAMLE DEM IGEN SENERE... OG SÅ AREA HALLØJET I VASKEN
-        # while len(sub_grids) > UAV_COUNT:
-        #     # find the two smallest connected sub-grids and merge them
-        #     min_area = math.inf
-        #     grids_to_merge = (None, None)
-        #     for i in range(len(sub_grids)):
-        #         for j in range(i + 1, len(sub_grids)):
-        #             if are_grids_adjacent(sub_grids[i], sub_grids[j]):
-        #                 area = np.sum(sub_grids[i]) + np.sum(sub_grids[j])
-        #                 if area < min_area:
-        #                     min_area = area
-        #                     grids_to_merge = (i, j)
-        #     if grids_to_merge[0] is not None and grids_to_merge[1] is not None:
-        #         merged_grid = merge_grids(sub_grids[grids_to_merge[0]], sub_grids[grids_to_merge[1]])
-        #         # remove the two grids and add the merged grid
-        #         new_sub_grids = []
-        #         for k in range(len(sub_grids)):
-        #             if k != grids_to_merge[0] and k != grids_to_merge[1]:
-        #                 new_sub_grids.append(sub_grids[k])
-        #         new_sub_grids.append(merged_grid)
-        #         sub_grids = new_sub_grids
-        #     else:
-        #         break  # no more connected grids to merge
-        # # find sweep line that results in best area balance between all sub-grids (remember, there might be more than 2 sub-grids)
-        # areas = [np.sum(sg) for sg in sub_grids]
-        # max_area = max(areas)
-        # min_area = min(areas)
-        # if max_area == 0:
-        #     continue # avoid division by zero
-        # balance = (max_area - min_area) / max_area  # relative balance measure
-        # if balance < best_balance:
-        #     best_balance = balance
-        #     selected_sweep_line = sweep_line
 
         # find sweep line that results in best area balance between all sub-grids (remember, there might be more than 2 sub-grids)
         areas = [np.sum(sg) for sg in sub_grids]
@@ -100,7 +55,7 @@ def find_best_sweep_line_area_balance(non_monotone_sweep_lines: List[LineString]
 def extract_regular_subgrids(fly_grid: np.ndarray, best_sweep_line_method: str = 'area_balance', allow_valid_monotone: bool = False) -> List[np.ndarray]:
     regular_grids_result = []
 
-    banned_sweep_lines = [] # to avoid selecting the same sweep line multiple times TODO
+    banned_sweep_lines = [] # to avoid selecting the same sweep line multiple times
 
     # go though each "candidate sweep line" and check for non-monotone sections
 

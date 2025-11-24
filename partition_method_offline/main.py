@@ -30,8 +30,8 @@ base_folder = "partition_method_offline"
 DRONE_START = (37.4122067992952, -121.998909115791) # for "baylands_polygon_v3.poly"
 
 #CAMERA_COVERAGE_LEN = 1 # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
-CAMERA_COVERAGE_LEN = 10 # for baylands_polygon_v3.poly
-UAV_COUNT = 3
+CAMERA_COVERAGE_LEN = 6 # for baylands_polygon_v3.poly
+UAV_COUNT = 4
 
 BEST_SWEEP_LINE_METHOD = 'area_balance' # 'gap_severity' or 'area_balance'.
                                         # Gap-severity is fine when a single drone covers all polygon partitions (as it does in the paper) (it yields good results).
@@ -87,7 +87,7 @@ def main(args=None) -> None:
     # TODO totally_mono.py
     # TODO paper_recreate.poly
     # TODO baylands_polygon_v3.poly
-    with open(base_folder + '/baylands_polygon_v3.poly','r') as f: 
+    with open(base_folder + '/baylands_cone_v2.poly','r') as f: 
         reader = csv.reader(f,delimiter=' ')
         for row in reader:
             if(row[0] == '#saved'): continue # skip header

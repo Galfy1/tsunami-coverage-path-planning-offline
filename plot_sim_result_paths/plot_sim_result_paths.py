@@ -100,6 +100,69 @@ def main(args=None) -> None:
 
 
 
+    # Regex to capture:
+    # Example lines:
+    # [application.drone_2]: MISSION START TIME (us): 78500000
+    # [application.drone_2]: MISSION END TIME (us): 158500000
+    mission_time_pattern = re.compile(
+        r"\[(?P<namespace>[\w\.]+)\]:\s+MISSION\s+(?P<type>START|END)\s+TIME\s+\(us\):\s+(?P<value>\d+)"
+    )
+
+    mission_times = {}  # { namespace: {"start": int | None, "end": int | None} }
+
+    with open(LOG_FILE, "r") as f:
+        for line in f:
+            match = mission_time_pattern.search(line)
+            if match:
+                ns = match.group("namespace")
+                ttype = match.group("type").lower()   # "start" or "end"
+                value = int(match.group("value"))
+
+                # Create entry once per namespace
+                if ns not in mission_times:
+                    mission_times[ns] = {"start": None, "end": None}
+
+                # Always update the relevant field
+                mission_times[ns][ttype] = value
+
+    # # Print the results
+    # for ns, times in mission_times.items():
+    #     print(f"{ns}: Start={times['start']}  End={times['end']}")
+
+    # Find the full mission duration across all drones 
+    all_start_times = [times["start"] for times in mission_times.values() if times["start"] is not None]
+    all_end_times = [times["end"] for times in mission_times.values() if times["end"] is not None]
+    if all_start_times and all_end_times:
+        overall_start = min(all_start_times)
+        overall_end = max(all_end_times)
+        overall_duration = overall_end - overall_start
+        print(f"Overall Mission Duration: {overall_duration / 1_000_000:.2f} seconds")
+
+    # Compute the Coefficient of Variation (CV) of mission durations https://www.geeksforgeeks.org/data-science/coefficient-of-variation-meaning-formula-and-examples/ 
+    mission_durations = []
+    for times in mission_times.values():
+        if times["start"] is not None and times["end"] is not None:
+            duration = times["end"] - times["start"]
+            mission_durations.append(duration)
+    if mission_durations:
+        mean_duration = np.mean(mission_durations)
+        std_duration = np.std(mission_durations)
+        cv_duration = std_duration / mean_duration if mean_duration > 0 else 0
+        cv_duration_pct = cv_duration * 100
+        print(f"Mission Duration Coefficient of Variation (CV): {cv_duration_pct:.2f}% (lower is better)")
+
+
+    # Find UAV utilizaton (ballance between uav missions times)
+    # total_uav_time = 0
+    # for ns, times in mission_times.items():
+    #     if times["start"] is not None and times["end"] is not None:
+    #         uav_time = times["end"] - times["start"]
+    #         total_uav_time += uav_time
+    #         print(f"{ns} Mission Duration: {uav_time / 1_000_000:.2f} seconds")
+
+    # print(f"Total UAV Utilization Time: {total_uav_time / 1_000_000:.2f} seconds")
+
+
     ############## Plot paths using folium ##############
 
     if flight_paths:

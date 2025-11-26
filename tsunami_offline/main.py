@@ -24,7 +24,7 @@ DRONE_START = (37.4122067992952, -121.998909115791) # (lat, lon) aka (y,x)
 CAMERA_COVERAGE_LEN = 10  # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
 
 # BFT Settings (only is of couse only relevant if BFT method is used on the drone):
-ALLOW_DIAGONAL_IN_BFT = False 
+ALLOW_DIAGONAL_IN_BFT = False # TODO, there is a bug here where "True" stopped working...
 
 # Offline Plotting Settings (this is just for single drone traversal plotting):
 PLOTTING_METHOD_SELECTION = "BFT"  # Options: "BFT",
@@ -32,7 +32,7 @@ PLOTTING_METHOD_SELECTION = "BFT"  # Options: "BFT",
                                         #          "centroid_hybrid", "centroid90_hybrid", (uses bidirectional by default + biases the drone towards its current moving direction)
                                         #                                                  (because bidirectional is used, centroid180_hybrid is not relevant here - as it would be the same as centroid_hybrid)
                                         # All data relevant for all modes will be saved in the pickle file anyway - so this setting is just for plotting
-PLOTTING_ONLY_PLOT_POINTS = True # If true, only the waypoints are plotted. If false, the full path planning lines are also plotted
+PLOTTING_ONLY_PLOT_POINTS = False # If true, only the waypoints are plotted. If false, the full path planning lines are also plotted
 PLOTTING_ALLOW_DIAGONAL_IN_PATH_PLANNING = True # THIS IS JUST FOR PLOTTING IN THIS FILE ! For tsunami (for now) the setting is set in the online file.
 PLOTTING_HYBRID_CENTROID_WEIGHT = 0.6 # (Only relevant if a hybrid method) how much weight to put on centroid direction vs current direction (0 = only current direction, 1 = only sweepline direction)
 
@@ -78,7 +78,7 @@ def main(args=None) -> None:
 
     # Note: polygons can for example for created in Mission Planner and exported as .poly files
     polygon_coords = []
-    with open(base_folder + '/baylands_polygon_v3.poly','r') as f: 
+    with open(base_folder + '/baylands_cone_v3.poly','r') as f: 
         reader = csv.reader(f,delimiter=' ')
         for row in reader:
             if(row[0] == '#saved'): continue # skip header
@@ -117,8 +117,8 @@ def main(args=None) -> None:
     # no_fly_zones = [no_fly_zone_polygon] # we can extend this to multiple no-fly zones if needed
 
     # make sure polygon is convex (its a requirement according to the Tsunami paper)
-    if(polygon.equals(polygon.convex_hull) == False):
-        raise ValueError("Polygon must be convex")
+    # if(polygon.equals(polygon.convex_hull) == False):
+    #     raise ValueError("Polygon must be convex")
     # for no_fly_zone_polygon in no_fly_zones:
     #     if(no_fly_zone_polygon.equals(no_fly_zone_polygon.convex_hull) == False): 
     #         raise ValueError("No-fly zone polygon must be convex")

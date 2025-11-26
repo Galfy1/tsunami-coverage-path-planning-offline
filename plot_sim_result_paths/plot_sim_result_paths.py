@@ -162,8 +162,26 @@ def main(args=None) -> None:
 
     # print(f"Total UAV Utilization Time: {total_uav_time / 1_000_000:.2f} seconds")
 
+    # Print total (all drones combined) path lengths and turn degrees metrics
+    total_path_length = 0.0
+    total_turn_degrees = 0.0
+    for drone, path in flight_paths.items():
+        pl = path_length(path)
+        td = total_turn_degree(path)
+        total_path_length += pl
+        total_turn_degrees += td
+        # print(f"{drone} Path Length: {pl:.2f} meters, Turn Degree: {td:.2f} degrees")
+    print(f"Total Path Length (all drones): {total_path_length:.2f} meters")
+    print(f"Total Turn Degree (all drones): {total_turn_degrees:.2f} degrees")
+
+
 
     ############## Plot paths using folium ##############
+
+    # Remove the last point from each path to not plot path back to home (makes the plot cleaner)
+    for drone in flight_paths:
+        if flight_paths[drone]:
+            flight_paths[drone] = flight_paths[drone][:-1]
 
     if flight_paths:
         # Center map at the first coordinate of the first drone
@@ -177,9 +195,9 @@ def main(args=None) -> None:
             if not path:
                 continue
             folium.PolyLine(path, color=path_colors[i % len(path_colors)], weight=2.5, opacity=1, tooltip=drone).add_to(m)
-            print(f"{drone} path length: {path_length(path):.2f} meters")
+            # print(f"{drone} path length: {path_length(path):.2f} meters")
             # print(f"{drone} turn count: {turn_count(path)} turns")
-            print(f"{drone} total turn degree: {total_turn_degree(path):.2f} degrees")
+            # print(f"{drone} turn degree: {total_turn_degree(path):.2f} degrees")
             # Mark start and end points
             folium.Marker(path[0], popup=f"{drone} Start", icon=folium.Icon(color='green')).add_to(m)
             folium.Marker(path[-1], popup=f"{drone} End", icon=folium.Icon(color='red')).add_to(m)

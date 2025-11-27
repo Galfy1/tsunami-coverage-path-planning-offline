@@ -98,6 +98,8 @@ def main(args=None) -> None:
                 except Exception as e:
                     print(f"Could not parse coords for {ns}: {e}")
 
+    #print uav count:
+    print(f"Number of drones with logged flight paths: {len(flight_paths)}")
 
 
     # Regex to capture:
@@ -189,12 +191,14 @@ def main(args=None) -> None:
         start_coords = flight_paths[first_drone][0]
         m = folium.Map(location=start_coords, zoom_start=18)
 
-        path_colors = ['red', 'blue', 'green', 'purple', 'orange', 'darkred', 'lightred', 'beige', 'darkblue', 'darkgreen']
+        path_colors = ['red', 'blue', 'green', 'purple', 'orange', 'darkred', 'black', 'darkblue', 'gray', 'white']
 
         for i, (drone, path) in enumerate(flight_paths.items()):
             if not path:
                 continue
-            folium.PolyLine(path, color=path_colors[i % len(path_colors)], weight=2.5, opacity=1, tooltip=drone).add_to(m)
+            folium.PolyLine(path, color=path_colors[i % len(path_colors)], weight=3.0, opacity=1, tooltip=drone).add_to(m)
+            # folium.PolyLine(path, color="black", weight=2.5, opacity=1, tooltip=drone).add_to(m)
+
             # print(f"{drone} path length: {path_length(path):.2f} meters")
             # print(f"{drone} turn count: {turn_count(path)} turns")
             # print(f"{drone} turn degree: {total_turn_degree(path):.2f} degrees")

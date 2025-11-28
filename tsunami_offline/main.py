@@ -21,7 +21,7 @@ base_folder = "tsunami_offline"
 
 
 DRONE_START = (37.4122067992952, -121.998909115791) # (lat, lon) aka (y,x)
-CAMERA_COVERAGE_LEN = 10  # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
+CAMERA_COVERAGE_LEN = 7  # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
 
 # BFT Settings (only is of couse only relevant if BFT method is used on the drone):
 ALLOW_DIAGONAL_IN_BFT = False # TODO, there is a bug here where "True" stopped working...
@@ -78,7 +78,7 @@ def main(args=None) -> None:
 
     # Note: polygons can for example for created in Mission Planner and exported as .poly files
     polygon_coords = []
-    with open(base_folder + '/baylands_cone_v3.poly','r') as f: 
+    with open(base_folder + '/baylands_dino_v12.poly','r') as f: 
         reader = csv.reader(f,delimiter=' ')
         for row in reader:
             if(row[0] == '#saved'): continue # skip header

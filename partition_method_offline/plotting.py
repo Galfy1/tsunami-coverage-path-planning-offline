@@ -7,7 +7,66 @@ from shapely.geometry import LineString
 from partition_method_offline.lawnmower import lawnmower
 
 
+def plot_combined_outline(fly_grid: np.ndarray, culling_merged_grids: list, path_per_uav: list, home_position: tuple = None):
+    """
+    Plot combined outline of all sub-grids and optionally the home position.
+    home_position: (row, col) in grid coordinates (same convention as other plotting functions)
+    """
+    # Build a single combined mask from all sub-grids (1 where any sub-grid covers)
+    if len(culling_merged_grids) == 0:
+        combined_mask = np.zeros_like(fly_grid, dtype=int)
+    else:
+        combined_mask = np.zeros_like(fly_grid, dtype=int)
+        for sg in culling_merged_grids:
+            combined_mask = np.where(sg == 1, 1, combined_mask)
 
+    fig, ax = plt.subplots(figsize=(8, 8))
+
+    # lightly fill the combined area
+    if np.any(combined_mask):
+        cmap = ListedColormap([(0.941, 0.894, 0.569, 0.05), (0.85, 0.9, 1.0, 0.7)])
+        ax.imshow(combined_mask.astype(int), cmap=cmap, origin='lower', vmin=0, vmax=1)
+
+    h, w = combined_mask.shape
+
+    # Build outline segments for the combined mask only (no internal sub-grid dividers)
+    outline_segments = []
+    for y in range(h):
+        for x in range(w):
+            if combined_mask[y, x] != 1:
+                continue
+            # left neighbor
+            if x - 1 < 0 or combined_mask[y, x - 1] == 0:
+                outline_segments.append([(x - 0.5, y - 0.5), (x - 0.5, y + 0.5)])
+            # right neighbor
+            if x + 1 >= w or combined_mask[y, x + 1] == 0:
+                outline_segments.append([(x + 0.5, y - 0.5), (x + 0.5, y + 0.5)])
+            # bottom neighbor
+            if y - 1 < 0 or combined_mask[y - 1, x] == 0:
+                outline_segments.append([(x - 0.5, y - 0.5), (x + 0.5, y - 0.5)])
+            # top neighbor
+            if y + 1 >= h or combined_mask[y + 1, x] == 0:
+                outline_segments.append([(x - 0.5, y + 0.5), (x + 0.5, y + 0.5)])
+
+    if outline_segments:
+        lc = LineCollection(outline_segments, colors='black', linewidths=2.5)
+        ax.add_collection(lc)
+
+    # Plot the home position if provided (expects (row, col))
+    if home_position is not None:
+        hy, hx = home_position
+        # Ensure the home position is within the grid bounds before plotting
+        if 0 <= hy < h and 0 <= hx < w:
+            ax.scatter([hx], [hy], color='blue', marker='*', s=120, edgecolors='k', label='Home', zorder=7)
+        else:
+            print(f"Warning: home_position {home_position} is outside grid bounds and will not be plotted.")
+
+    ax.legend(loc='upper right', fontsize='small')
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_aspect('equal')
+    plt.tight_layout()
+    plt.show()
 
 
 def plot_path_per_uav(fly_grid: np.ndarray, culling_merged_grids: list, path_per_uav: list):

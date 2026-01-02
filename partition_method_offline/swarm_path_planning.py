@@ -42,7 +42,7 @@ def compute_internal_path_costs(candidate_list, alpha = 0.5, len_tolerance = 10)
         for candidate_other in candidate_list:
             if abs(candidate_other['path_len_euclidean']-first_term) < len_tolerance:
                 valid_turn_counts.append(candidate_other['turn_count'])
-        second_term = turn_count - (min(valid_turn_counts) if valid_turn_counts else 0)
+        second_term = turn_count - (min(valid_turn_counts) if valid_turn_counts else turn_count)
         second_term = alpha * max(0, second_term)
 
         candidate['internal_cost'] = first_term + second_term

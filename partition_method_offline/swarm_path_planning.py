@@ -29,7 +29,7 @@ def compute_total_path_cost(candidate_per_partition):
 
 
 #(see paper for cost function definition)
-def compute_internal_path_costs(candidate_list, alpha = 0.5, len_tolerance = 10): 
+def compute_internal_path_costs(candidate_list, alpha = 0.5, len_tolerance = 10): # TODO adjust alpha and len_tolerance as needed
 
     for candidate in candidate_list:
         turn_count = candidate['turn_count']

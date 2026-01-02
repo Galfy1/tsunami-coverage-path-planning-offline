@@ -45,8 +45,6 @@ def culling_merging(all_sub_grids):
         # Go through each pair of sub-grids and check if they are adjacent (i.e., share a common boundary segment)
         for sub_grid in sub_grids_pack:
 
-            #print("PEPSI MAX")
-
             # SKIP anything already marked to be ignored/consumed in a merge
             if any(np.array_equal(sub_grid, ig) for ig in ignore_grids):
                 continue
@@ -65,10 +63,8 @@ def culling_merging(all_sub_grids):
                     merged_grid = merge_grids(sub_grid, sub_grid_other)
                     _, grid_is_irregular, _, _ = scan_for_non_monotone_sections(merged_grid)
                     if grid_is_irregular == False:
-                        #print("WWWWWWWWWWW")
                         # Acceptability criterion satisfied!
                         # Merge the two sub-grids
-                        #sub_grid = merged_grid # SAMME HER
                         new_sub_grids_pack.append(merged_grid) 
 
                         # make sure we dont check the two merged grids again:
@@ -86,12 +82,8 @@ def culling_merging(all_sub_grids):
 
         if merge_happened:
             sub_grid_pack_queue.append(new_sub_grids_pack)
-            #print("777. subgrids len:", len(new_sub_grids_pack))
         else:
             # no merges happened - our work here is done
             all_sub_grids_after_culling = sub_grids_pack.copy()
-            #print("888. subgrids len:", len(sub_grids_pack))
-
-    #print(f"asdasd {all_sub_grids_after_culling}")
 
     return all_sub_grids_after_culling

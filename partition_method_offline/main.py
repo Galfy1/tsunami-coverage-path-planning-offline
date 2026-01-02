@@ -19,7 +19,7 @@ from shared_tools.custom_cell_tools import dx_4way, dy_4way, dx_8way, dy_8way, c
 from shared_tools.create_grid_from_poly import create_grid_from_polygon_and_noflyzones
 from partition_method_offline.swarm_path_planning import path_plan_swarm
 from partition_method_offline.culling_merging import culling_merging
-from partition_method_offline.plotting import plot_path_per_uav
+from partition_method_offline.plotting import plot_combined_outline, plot_path_per_uav
 from partition_method_offline.extract_regular_subgrids import extract_regular_subgrids
 
 base_folder = "partition_method_offline"
@@ -30,8 +30,8 @@ base_folder = "partition_method_offline"
 DRONE_START = (37.4122067992952, -121.998909115791) # for "baylands_polygon_v3.poly"
 
 #CAMERA_COVERAGE_LEN = 1 # meters. coverage of the drone camera in the narrowest dimension (i.e. the bottleneck dimension) (e.g. the width coverage if flying in landscape mode)
-CAMERA_COVERAGE_LEN = 7 # for baylands_polygon_v3.poly
-UAV_COUNT = 10
+CAMERA_COVERAGE_LEN = 10 # for baylands_polygon_v3.poly
+UAV_COUNT = 3
 
 BEST_SWEEP_LINE_METHOD = 'area_balance' # 'gap_severity' or 'area_balance'.
                                         # Gap-severity is fine when a single drone covers all polygon partitions (as it does in the paper) (it yields good results).
@@ -48,7 +48,7 @@ BEST_SWEEP_LINE_METHOD = 'area_balance' # 'gap_severity' or 'area_balance'.
                                         #                 instead of choosing the one that would result in better future paths (e.g., lower cost).
                                         #          Solving these issues is non-trivial, as it would require information about the results of future processing steps.
                                         
-ALLOW_VALID_MONOTONE_IN_SECTION_SCAN = False # also allow "valid" monotone sweep lines when scanning for non-monotone sections (valid: 2 regular partitions when using it to split)
+ALLOW_VALID_MONOTONE_IN_SECTION_SCAN = True # also allow "valid" monotone sweep lines when scanning for non-monotone sections (valid: 2 regular partitions when using it to split)
                                             # why? setting this to True can potentially result in better splits. HOWEVER, processing time is longer.
                                             # (THIS OPTION IS NOT RELEVANT IF "gap_severity" METHOD IS USED FOR BEST SWEEP LINE SELECTION- since monotone sweep lines has no gaps)
                                             # (the https://arxiv.org/abs/2505.08060v1 paper done use this option (i.e. False), but they also only have a single UAV covering all partitions - so gap severity is used instead)
@@ -87,7 +87,7 @@ def main(args=None) -> None:
     # TODO totally_mono.py
     # TODO paper_recreate.poly
     # TODO baylands_polygon_v3.poly
-    with open(base_folder + '/baylands_dino_v12.poly','r') as f: 
+    with open(base_folder + '/baylands_cone_v3.poly','r') as f: 
         reader = csv.reader(f,delimiter=' ')
         for row in reader:
             if(row[0] == '#saved'): continue # skip header
@@ -144,6 +144,7 @@ def main(args=None) -> None:
     # Plot if enabled
     if ENABLE_PLOTTING:
         plot_path_per_uav(fly_nofly_grid, culling_merged_grids, path_per_uav)
+        #plot_combined_outline(fly_nofly_grid, culling_merged_grids, path_per_uav, home_cell)
 
     # DEBUG
     #best_path_debug , start_cell, end_cell, _ = path_plan_swarm(culling_merged_grids, uav_count=3)

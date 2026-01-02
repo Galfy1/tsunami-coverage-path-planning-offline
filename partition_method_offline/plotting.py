@@ -123,8 +123,6 @@ def plot_path_per_uav(fly_grid: np.ndarray, culling_merged_grids: list, path_per
         lc = LineCollection(segments, colors='black', linewidths=2.5)
         ax.add_collection(lc)
 
-    # ax.set_title("Regular sub-grids (single fill) with divider lines")
-
     start_points = []
     end_points = []
 

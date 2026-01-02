@@ -49,7 +49,6 @@ def split_grid_with_disconnected_sections(grid: np.ndarray):
     for y in range(remaining_grid.shape[0]):
         for x in range(remaining_grid.shape[1]):
             if remaining_grid[y][x] == 1:
-                #print(f"SUSHI {x}, {y}")
                 # found a flyable cell, start flood fill to find all connected cells
                 visited = np.zeros_like(remaining_grid)
                 to_visit = queue()
@@ -94,7 +93,6 @@ def split_grid_with_disconnected_sections(grid: np.ndarray):
 
 
 def split_grid_along_sweep_line(grid: np.ndarray, sweep_line: LineString):
-
     sub_grids = []
 
     # (remember, shapely LineString coords are in (x,y) format, while our grid is in (y,x) format)

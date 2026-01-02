@@ -7,7 +7,6 @@ from tsunami_offline.breadth_first_traversal import breadth_first_traversal
 from shared_tools.custom_cell_tools import is_cell_valid, dx_4way, dy_4way, dx_8way, dy_8way
 
 
-
 # Order that make sure next cell is a neighbor of the current cell (breadth first traversal does not guarantee this)
 def single_drone_traversal_order_bft(grid, start_cell, allow_diagonal_in_bft=False, allow_diagonal_in_path=False):
     bft = breadth_first_traversal(grid, start_cell, allow_diagonal=allow_diagonal_in_bft)
@@ -63,8 +62,6 @@ def single_drone_traversal_order_bft(grid, start_cell, allow_diagonal_in_bft=Fal
     return result
 
 
-# TODO: !!! ALTERNATIV STRATEGI: BARE VÆLG DEN FØRSTE NEIBOR DER ER FRI. (start med venstre, så op, så højre, så ned, eller sådan noget). så holder dronen altid til venstre
-
 def _find_closest_cell(grid, current_cell, visited_cells):
     min_dist = float("inf")
     closest_cell = None
@@ -86,8 +83,8 @@ def _find_centroid_angle_diff_of_neighbors(grid, current_cell, visited_cells, ce
     y = current_cell[0]
     result = []
 
-    # TODO LIGE NU ER DET KUN 8 WAY. AKA allow_diagonal_in_path GØR INGENTING... IMPLIMENTER 4 WAY OGSÅ?
-    # MÅSKE LAV EN WARNING MED AT DET IKKE GIVER SUPER MEGET MENEING MED allow_diagonal_in_path = false for centroid stuff?
+    if allow_diagonal_in_path:
+        raise NotImplementedError("Currently, only 8-way movement is implemented for centroid-based methods.")
 
     for i in range(8):
         adjx = x + dx_8way[i]
@@ -226,37 +223,3 @@ def single_drone_traversal_order_alt(grid, start_cell, start_gps, polygon: Polyg
         vis[next_cell[0]][next_cell[1]] = True
 
     return result
-
-# # Test Code
-# if __name__ == '__main__':
-  
-#     # Given input matrix
-#     grid = np.array([[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-#                     [0,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0],
-#                     [0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0],
-#                     [0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0],
-#                     [0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0],
-#                     [0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0],
-#                     [0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0],
-#                     [0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0],
-#                     [0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1],
-#                     [0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1],
-#                     [0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,0,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-#                     [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1]])
-
-
-
-#     # vis, False, sizeof vis)
-
-#     print(traversal_order(grid, 10, 10))

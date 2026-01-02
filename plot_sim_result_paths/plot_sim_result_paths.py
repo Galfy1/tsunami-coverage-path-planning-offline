@@ -11,7 +11,6 @@ from geopy.distance import geodesic
 
 # SIMLUATON LOGS CAN BE FOUND IN ~/.ros/log/
 
-
 DIR_TO_THIS_FILE = os.path.dirname(os.path.abspath(__file__))
 LOG_FILE = DIR_TO_THIS_FILE + "/launch.log"
 
@@ -45,30 +44,6 @@ def total_turn_degree(coords):
         total_turn += angle_diff
     return total_turn
 
-# def turn_count(coords, angle_threshold=30):
-#     import numpy as np
-
-#     def bearing(pointA, pointB):
-#         lat1 = np.radians(pointA[0])
-#         lat2 = np.radians(pointB[0])
-#         diffLong = np.radians(pointB[1] - pointA[1])
-#         x = np.sin(diffLong) * np.cos(lat2)
-#         y = np.cos(lat1) * np.sin(lat2) - (np.sin(lat1) * np.cos(lat2) * np.cos(diffLong))
-#         initial_bearing = np.arctan2(x, y)
-#         initial_bearing = np.degrees(initial_bearing)
-#         compass_bearing = (initial_bearing + 360) % 360
-#         return compass_bearing
-
-#     turns = 0
-#     for i in range(1, len(coords) - 1):
-#         bearing1 = bearing(coords[i - 1], coords[i])
-#         bearing2 = bearing(coords[i], coords[i + 1])
-#         angle_diff = abs(bearing2 - bearing1)
-#         if angle_diff > 180:
-#             angle_diff = 360 - angle_diff
-#         if angle_diff >= angle_threshold:
-#             turns += 1
-#     return turns
 
 def main(args=None) -> None:
 
@@ -127,9 +102,6 @@ def main(args=None) -> None:
                 # Always update the relevant field
                 mission_times[ns][ttype] = value
 
-    # # Print the results
-    # for ns, times in mission_times.items():
-    #     print(f"{ns}: Start={times['start']}  End={times['end']}")
 
     # Find the full mission duration across all drones 
     all_start_times = [times["start"] for times in mission_times.values() if times["start"] is not None]
@@ -153,16 +125,6 @@ def main(args=None) -> None:
         cv_duration_pct = cv_duration * 100
         print(f"Mission Duration Coefficient of Variation (CV): {cv_duration_pct:.2f}% (lower is better)")
 
-
-    # Find UAV utilizaton (ballance between uav missions times)
-    # total_uav_time = 0
-    # for ns, times in mission_times.items():
-    #     if times["start"] is not None and times["end"] is not None:
-    #         uav_time = times["end"] - times["start"]
-    #         total_uav_time += uav_time
-    #         print(f"{ns} Mission Duration: {uav_time / 1_000_000:.2f} seconds")
-
-    # print(f"Total UAV Utilization Time: {total_uav_time / 1_000_000:.2f} seconds")
 
     # Print total (all drones combined) path lengths and turn degrees metrics
     total_path_length = 0.0
@@ -197,11 +159,7 @@ def main(args=None) -> None:
             if not path:
                 continue
             folium.PolyLine(path, color=path_colors[i % len(path_colors)], weight=3.0, opacity=1, tooltip=drone).add_to(m)
-            # folium.PolyLine(path, color="black", weight=2.5, opacity=1, tooltip=drone).add_to(m)
 
-            # print(f"{drone} path length: {path_length(path):.2f} meters")
-            # print(f"{drone} turn count: {turn_count(path)} turns")
-            # print(f"{drone} turn degree: {total_turn_degree(path):.2f} degrees")
             # Mark start and end points
             folium.Marker(path[0], popup=f"{drone} Start", icon=folium.Icon(color='green')).add_to(m)
             folium.Marker(path[-1], popup=f"{drone} End", icon=folium.Icon(color='red')).add_to(m)
@@ -210,10 +168,6 @@ def main(args=None) -> None:
 
 
     ############## Add bf traversal points to map ##############
-
-    # with open('bf_traversal.pkl', 'rb') as fp:
-    #     bf_data = pickle.load(fp)
-    #     bf_traversal_gps = bf_data['bf_traversal_gps']
 
     PLOT_POINT_SOURCE = "tsunami" # "tsunami" or "partition"
 
@@ -243,6 +197,5 @@ def main(args=None) -> None:
     print(f"Flight paths and BFT map saved to {map_file}")
 
     
-
 if __name__ == '__main__':
     main()

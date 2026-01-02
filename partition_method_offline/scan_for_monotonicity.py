@@ -29,8 +29,6 @@ def scan_for_non_monotone_sections(grid: np.ndarray, allow_valid_monotone: bool 
             if len(intersection_points) == 0 or intersection_points[-1] != (y, grid.shape[1]-1): # if not already added
                 intersection_points.append((y, grid.shape[1]-1))
 
-
-        #print(f"leng: {len(intersection_points)}")
         if len(intersection_points) > 2:
             # Sweep line is does not pass criteria! (its intersecting non-monotone sections)
             #sweep_line = LineString([(p1_x, y), (p2_x, y)])
@@ -63,8 +61,6 @@ def scan_for_non_monotone_sections(grid: np.ndarray, allow_valid_monotone: bool 
                         if is_regular_0 == False: break # early exit
                         _, is_regular_1, _, _ = scan_for_monotone_sections(sub_grids[1])
                         if is_regular_1 == False: break # early exit
-                        # if is_regular_0 and is_regular_1:
-                            #print(f"MONOTONE: {above_line}")
                         non_monotone_sweep_lines.append((above_line, intersection_points, float('inf')))
                         break
 
@@ -77,11 +73,8 @@ def scan_for_non_monotone_sections(grid: np.ndarray, allow_valid_monotone: bool 
                         if is_regular_0 == False: break # early exit
                         _, is_regular_1, _, _ = scan_for_monotone_sections(sub_grids[1])
                         if is_regular_1 == False: break # early exit
-                        # if is_regular_0 and is_regular_1:
-                            #print(f"MONOTONE: {below_line}")
                         non_monotone_sweep_lines.append((below_line, intersection_points, float('inf')))
                         break
-
 
     # go through all vertical sweep lines:
     p1_y = 0
@@ -104,7 +97,6 @@ def scan_for_non_monotone_sections(grid: np.ndarray, allow_valid_monotone: bool 
 
         if len(intersection_points) > 2:
             # Sweep line is does not pass criteria! (its intersecting non-monotone sections)
-            #sweep_line = LineString([(x, p1_y), (x, p2_y)])
             gap_severity = 0
             for i in range(1, len(intersection_points) - 1, 2):
                 start_pt = intersection_points[i]
@@ -125,7 +117,6 @@ def scan_for_non_monotone_sections(grid: np.ndarray, allow_valid_monotone: bool 
                 # Note: This might result in some duplicate entries in non_monotone_sweep_lines.
                 #       However, its faster to allow duplicates here and handle them later if needed, than to check for duplicates here - so we dont.
             
-                # while(True): # this is just to allow easy early breaking for faster processing
                 above_line = LineString([(p1_x, y + 1), (p2_x, y + 1)])
                 sub_grids = split_grid_along_sweep_line(grid, above_line)
                 if len(sub_grids) == 2:
@@ -135,8 +126,6 @@ def scan_for_non_monotone_sections(grid: np.ndarray, allow_valid_monotone: bool 
                         if is_regular_0 == False: break # early exit
                         _, is_regular_1, _, _ = scan_for_monotone_sections(sub_grids[1])
                         if is_regular_1 == False: break # early exit
-                        # if is_regular_0 and is_regular_1:
-                            #print(f"MONOTONE: {above_line}")
                         non_monotone_sweep_lines.append((above_line, intersection_points, float('inf')))
                         break
 
@@ -149,8 +138,6 @@ def scan_for_non_monotone_sections(grid: np.ndarray, allow_valid_monotone: bool 
                         if is_regular_0 == False: break # early exit
                         _, is_regular_1, _, _ = scan_for_monotone_sections(sub_grids[1])
                         if is_regular_1 == False: break # early exit
-                        # if is_regular_0 and is_regular_1:
-                            #print(f"MONOTONE: {below_line}")
                         non_monotone_sweep_lines.append((below_line, intersection_points, float('inf')))
                         break 
 

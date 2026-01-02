@@ -29,7 +29,7 @@ def compute_total_path_cost(candidate_per_partition):
 
 
 #(see paper for cost function definition)
-def compute_internal_path_costs(candidate_list, alpha = 0.5, len_tolerance = 10): # TODO find en okay default alpha og turn tol
+def compute_internal_path_costs(candidate_list, alpha = 0.5, len_tolerance = 10): 
 
     for candidate in candidate_list:
         turn_count = candidate['turn_count']
@@ -86,7 +86,6 @@ def one_uav_multi_partitions_path_plan(sub_grids: List[np.ndarray]):
 
     best_cost = float('inf')
     best_combination = None
-
 
     # Try every permutation of partition order
     for order in itertools.permutations(range(len(all_candidates_per_partition))): # .permutations: generates all possible ordered arrangements of a given iterable (see https://www.geeksforgeeks.org/python/python-itertools-permutations/)

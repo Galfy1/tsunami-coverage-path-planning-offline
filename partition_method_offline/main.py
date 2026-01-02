@@ -76,17 +76,16 @@ def _plot_grid(grid: np.ndarray, title: str = "Grid"):
 
 
 
-
-
 def main(args=None) -> None:
 
     # Note: polygons can for example for created in Mission Planner and exported as .poly files
     polygon_coords = []
-    # TODO horizontal_nonmono_only
-    # TODO irregular_poly
-    # TODO totally_mono.py
-    # TODO paper_recreate.poly
-    # TODO baylands_polygon_v3.poly
+    # Example polygons (used to test the code):
+    # horizontal_nonmono_only
+    # irregular_poly
+    # totally_mono.py
+    # paper_recreate.poly
+    # baylands_polygon_v3.poly
     with open(base_folder + '/baylands_cone_v3.poly','r') as f: 
         reader = csv.reader(f,delimiter=' ')
         for row in reader:
@@ -139,24 +138,10 @@ def main(args=None) -> None:
     with open(base_folder + '/partition_offline_data.pkl', 'wb') as f:
         pickle.dump(data_to_save, f)
 
-    #print(f"path2: {path_per_uav[1][0]}")
-
     # Plot if enabled
     if ENABLE_PLOTTING:
         plot_path_per_uav(fly_nofly_grid, culling_merged_grids, path_per_uav)
         #plot_combined_outline(fly_nofly_grid, culling_merged_grids, path_per_uav, home_cell)
-
-    # DEBUG
-    #best_path_debug , start_cell, end_cell, _ = path_plan_swarm(culling_merged_grids, uav_count=3)
-    # DEBUG END
-
-    # Plot the resulting sub-grids
-    # plot_subgrid(fly_grid, culling_merged_grids, plot_paths=True, best_path_debug=best_path_debug, start_cell=start_cell, end_cell=end_cell)
-
-
-
-
-
 
 
 

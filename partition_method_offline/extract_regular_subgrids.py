@@ -28,11 +28,9 @@ def find_best_sweep_line_area_balance(non_monotone_sweep_lines: List[LineString]
         if sweep_line in banned_sweep_lines:
             continue # skip already used sweep lines
 
-        #print(f"Evaluating sweep line: {sweep_line}")
-
         # Split grid along this sweep line
         sub_grids = split_grid_along_sweep_line(grid, sweep_line)
-        if len(sub_grids) < 2:  # TODO 
+        if len(sub_grids) < 2:
             continue 
 
         # find sweep line that results in best area balance between all sub-grids (remember, there might be more than 2 sub-grids)
@@ -68,7 +66,6 @@ def extract_regular_subgrids(fly_grid: np.ndarray, best_sweep_line_method: str =
 
         non_monotone_sweep_lines, grid_is_irregular, _, _ = scan_for_non_monotone_sections(grid, allow_valid_monotone=allow_valid_monotone)
 
-
         # Check if "polygon" is irregular (i.e., non–monotone in both directions)
         if grid_is_irregular:
             print("Polygon is irregular (non-monotone in both directions)")
@@ -93,8 +90,6 @@ def extract_regular_subgrids(fly_grid: np.ndarray, best_sweep_line_method: str =
 
             # Split grid along selected sweep line
             sub_grids = split_grid_along_sweep_line(grid, selected_sweep_line)
-
-            #print(f"Split grid into {len(sub_grids)} sub-grids along sweep line")
 
             # add sub-grids to queue for further processing
             for sub_grid in sub_grids:

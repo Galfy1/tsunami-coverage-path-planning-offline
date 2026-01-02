@@ -49,12 +49,7 @@ PLOTTING_HYBRID_CENTROID_WEIGHT = 0.6 # (Only relevant if a hybrid method) how m
             # "centroid90" which makes paths parallel to the centroid line
         # "centroid" does the same as "centroid180" (asuming unidirectional) - BUT, at the start, the drone is forced to fly directly to the other side of the polygon before starting the real "coverage pattern"
 
-
-
 # NOTE: We have tried to keep all coords, cells, grids, etc. (y,x) aka (lat, lon) - besides shapely Point, those are (x,y)
-
-
-
 
 def convert_cells_to_gps(cells, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y):
     # Add half grid res to get to center of cell, instead of just the lower left corner
@@ -75,7 +70,6 @@ def convert_cells_to_gps(cells, x_axis_coords, y_axis_coords, grid_res_x, grid_r
 
 def main(args=None) -> None:
 
-
     # Note: polygons can for example for created in Mission Planner and exported as .poly files
     polygon_coords = []
     with open(base_folder + '/baylands_dino_v12.poly','r') as f: 
@@ -84,19 +78,9 @@ def main(args=None) -> None:
             if(row[0] == '#saved'): continue # skip header
             polygon_coords.append((float(row[1]), float(row[0]))) # (lat, lon)(aka y,x) to (lon, lat)(aka x,y)
 
-    # print("''''''''''''''''''''''''''")
-    # print(polygon_coords)
-    # print("''''''''''''''''''''''''''")
     polygon = Polygon(polygon_coords)
     if not polygon.is_valid:
         raise ValueError("Polygon is not valid")
-
-    # no_fly_zone = []
-    # with open('no_fly_zone.poly','r') as f:
-    #     reader = csv.reader(f,delimiter=' ')
-    #     for row in reader:
-    #         if(row[0] == '#saved'): continue # skip header
-    #         no_fly_zone.append((float(row[1]), float(row[0]))) # (lat, lon)(aka y,x) to (lon, lat)(aka x,y)
 
     no_fly_zones = []
     for filename in os.listdir(base_folder + "/no_fly_zones"):
@@ -109,13 +93,7 @@ def main(args=None) -> None:
                     current_no_fly_zone.append((float(row[1]), float(row[0]))) # (lat, lon)(aka y,x) to (lon, lat)(aka x,y)
                 no_fly_zones.append(Polygon(current_no_fly_zone)) # convert no-fly zone coordinates to a Shapely polygon
 
-
-
-
-    # # Convert no-fly zone coordinates to a Shapely polygon
-    # no_fly_zone_polygon = Polygon(no_fly_zone)
-    # no_fly_zones = [no_fly_zone_polygon] # we can extend this to multiple no-fly zones if needed
-
+    # THE FOLLOWING IS NOT USED ANYMORE (we allow non-convex polygons now):
     # make sure polygon is convex (its a requirement according to the Tsunami paper)
     # if(polygon.equals(polygon.convex_hull) == False):
     #     raise ValueError("Polygon must be convex")
@@ -152,16 +130,8 @@ def main(args=None) -> None:
     with open(base_folder + '/tsunami_offline_data.pkl', 'wb') as fp:
         pickle.dump(data_to_save, fp)
 
-    # # heatmap plot
-    # heatmap = np.zeros((len(y_coords), len(x_coords)), dtype=int)
-    # for idx, (i, j) in enumerate(traversal_order_cells):
-    #     heatmap[i, j] = idx + 1  # Start from 1 for better visibility
-    # plt.imshow(heatmap, origin="lower", cmap="hot", interpolation='nearest')
-    # plt.show() 
-
 
     ################################ PLOTTING ################################
-
 
 
     #traversal_order_cells = single_drone_traversal_order(fly_nofly_grid, home_cell[0], home_cell[1], allow_diagonal_in_bft=ALLOW_DIAGONAL_IN_BFT, allow_diagonal_in_path=ALLOW_DIAGONAL_IN_PATH_OFFLINE_PLOTTING) # start somewhere in the middle TODO: make sure start point is valid (inside polygon and not in no-fly zone)
@@ -171,15 +141,12 @@ def main(args=None) -> None:
         traversal_order_cells = single_drone_traversal_order_alt(fly_nofly_grid, home_cell, DRONE_START, polygon, method=PLOTTING_METHOD_SELECTION,
                                                                  allow_diagonal_in_path=PLOTTING_ALLOW_DIAGONAL_IN_PATH_PLANNING, hybrid_centroid_weight=PLOTTING_HYBRID_CENTROID_WEIGHT)
     traversal_order_gps = convert_cells_to_gps(traversal_order_cells, x_axis_coords, y_axis_coords, grid_res_x, grid_res_y)
-    #print("TRAVERSAL ORDER GPS COORDS:", traversal_order_gps)
-
 
     import folium
     import matplotlib.cm as cm
     import matplotlib.colors as colors
     from matplotlib import colormaps
     # List of coordinates (using a shortened sample for demonstration; will replace with full list)
-    
 
     # Center the map around the average of coordinates
     avg_lat = sum(lat for lat, lon in traversal_order_gps) / len(traversal_order_gps)
@@ -210,23 +177,9 @@ def main(args=None) -> None:
         folium.PolyLine(locations=traversal_order_gps, color="blue", weight=2.0, opacity=1, ).add_to(m)
         pass
 
-
     script_dir = os.path.dirname(os.path.abspath(__file__))  # Get script directory
     map_path = os.path.join(script_dir, "map.html")          # Set filename
     m.save(map_path)
-
-
-
-    #Link til wavefront "breath first traversal (BFS)":
-    # https://www.geeksforgeeks.org/dsa/breadth-first-traversal-bfs-on-a-2d-array/
-    # tænker bare vi bruger den order som BFS traversal returner.
-        # lige nu printer den grid elementerne. vi vil lave den så den returner en liste af tuples med koordinaterne i x,y i griddet.
-    # og så har vi samtidligt vores grid (hver element bool) som holder styr på om hver celle skal besøges eller ej (skal ikke være i no-fly-zone/obstacle eller allerede besøgt).
-    # dronen kigger på på traversal listen og tjekker om næste punkt er valid udfra vores grid
-
-
-    # Vi skal også have noget der converter fra grid koordinater til GPS koordinater, til når dronen rent faktisk skal flyve hen til et punkt.
-
 
 
 if __name__ == '__main__':

@@ -7,7 +7,6 @@ from shared_tools.custom_cell_tools import dx_4way, dy_4way, dx_8way, dy_8way, d
 def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizontal'):
     # implement lawnmower path generation for the given grid
 
-
     path = []
     end_cell = None
     turn_count = 0
@@ -275,7 +274,5 @@ def lawnmower(grid: np.ndarray, start_corner = 'nw', direction: str = 'horizonta
 
     # Compute the Euclidean distance of the path
     path_len_euclidean = sum(math.dist(path[i], path[i + 1]) for i in range(len(path) - 1))
-
-    #print(f"Lawnmower path generated with {len(path)} cells, {turn_count} turns, and Euclidean length {path_len_euclidean:.2f}.")
 
     return path, path_len_euclidean, start_cell, end_cell, turn_count
